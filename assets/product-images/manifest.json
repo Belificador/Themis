@@ -1,0 +1,20 @@
+[
+  {
+    "brand": "Tecno",
+    "model": "Camon 50 Ultra 5G",
+    "file": "tecno-camon-50-ultra-5g",
+    "page_url": "https://www.tecno-mobile.com/phones/product-detail/product/camon-50-ultra-5g/",
+    "image_url": "https://d13pvy8xd75yde.cloudfront.net/global/camon50pro5g/CN7c-en_v1.0.0_complete/assets/images-kv-kv-phone-1.png.webp",
+    "source": "official",
+    "content_type": "image/webp"
+  },
+  {
+    "brand": "Tecno",
+    "model": "Pova 8 Pro 5G",
+    "file": "tecno-pova-8-pro-5g",
+    "page_url": "https://www.tecno-mobile.com/phones/product-detail/product/pova-8-pro-5g/",
+    "image_url": "https://d13pvy8xd75yde.cloudfront.net/global/phones/pova8/lk7/assets/images-kv-phone-left-1.png.webp",
+    "source": "official",
+    "content_type": "image/webp"
+  }
+]

@@ -1,0 +1,266 @@
+name: themis
+
+services:
+  postgres-catalog:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: catalog
+      POSTGRES_PASSWORD: catalog
+      POSTGRES_DB: catalog
+    volumes:
+      - catalog_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalog -d catalog"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [themis]
+
+  postgres-inventory:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: inventory
+      POSTGRES_DB: inventory
+    volumes:
+      - inventory_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory -d inventory"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [themis]
+
+  postgres-notification:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: notification
+      POSTGRES_PASSWORD: notification
+      POSTGRES_DB: notification
+    volumes:
+      - notification_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification -d notification"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [themis]
+
+  postgres-sales:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sales
+      POSTGRES_PASSWORD: sales
+      POSTGRES_DB: sales
+    volumes:
+      - sales_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sales -d sales"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [themis]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [themis]
+
+  catalog-service:
+    build:
+      context: .
+      dockerfile: services/catalog/Dockerfile
+    environment:
+      SERVICE_NAME: catalog-service
+      DATABASE_URL: "${CATALOG_DATABASE_URL:-postgresql+asyncpg://catalog:catalog@postgres-catalog:5432/catalog}"
+      RABBITMQ_URL: "${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}"
+      PRODUCTS_EXCHANGE: "${PRODUCTS_EXCHANGE:-products}"
+      OUTBOX_INTERVAL_SECONDS: "${OUTBOX_INTERVAL_SECONDS:-1}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      MEDIA_DIR: "${CATALOG_MEDIA_DIR:-/data/media}"
+      IMAGE_MAX_BYTES: "${IMAGE_MAX_BYTES:-5242880}"
+    volumes:
+      - catalog_media:/data/media
+    depends_on:
+      postgres-catalog:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+    restart: unless-stopped
+    networks: [themis]
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: services/inventory/Dockerfile
+    environment:
+      SERVICE_NAME: inventory-service
+      DATABASE_URL: "${INVENTORY_DATABASE_URL:-postgresql+asyncpg://inventory:inventory@postgres-inventory:5432/inventory}"
+      RABBITMQ_URL: "${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}"
+      PRODUCTS_EXCHANGE: "${PRODUCTS_EXCHANGE:-products}"
+      STOCK_EXCHANGE: "${STOCK_EXCHANGE:-stock}"
+      INVENTORY_QUEUE: "${INVENTORY_QUEUE:-inventory.product_events}"
+      OUTBOX_INTERVAL_SECONDS: "${OUTBOX_INTERVAL_SECONDS:-1}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+    depends_on:
+      postgres-inventory:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+    restart: unless-stopped
+    networks: [themis]
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification/Dockerfile
+    environment:
+      SERVICE_NAME: notification-service
+      DATABASE_URL: "${NOTIFICATION_DATABASE_URL:-postgresql+asyncpg://notification:notification@postgres-notification:5432/notification}"
+      RABBITMQ_URL: "${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}"
+      STOCK_EXCHANGE: "${STOCK_EXCHANGE:-stock}"
+      NOTIFICATION_QUEUE: "${NOTIFICATION_QUEUE:-notification.stock_events}"
+      DEDUPE_WINDOW_SECONDS: "${DEDUPE_WINDOW_SECONDS:-300}"
+      MAX_ATTEMPTS: "${MAX_ATTEMPTS:-3}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      TELEGRAM_ENABLED: "${TELEGRAM_ENABLED:-true}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-}"
+      WHATSAPP_ENABLED: "${WHATSAPP_ENABLED:-true}"
+      WHATSAPP_TOKEN: "${WHATSAPP_TOKEN:-}"
+      WHATSAPP_PHONE_NUMBER_ID: "${WHATSAPP_PHONE_NUMBER_ID:-}"
+      WHATSAPP_RECIPIENT: "${WHATSAPP_RECIPIENT:-}"
+      WHATSAPP_API_VERSION: "${WHATSAPP_API_VERSION:-v20.0}"
+    depends_on:
+      postgres-notification:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+    restart: unless-stopped
+    networks: [themis]
+
+  sales-service:
+    build:
+      context: .
+      dockerfile: services/sales/Dockerfile
+    environment:
+      SERVICE_NAME: sales-service
+      DATABASE_URL: "${SALES_DATABASE_URL:-postgresql+asyncpg://sales:sales@postgres-sales:5432/sales}"
+      CATALOG_URL: "${CATALOG_URL:-http://catalog-service:8000}"
+      INVENTORY_URL: "${INVENTORY_URL:-http://inventory-service:8000}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      MEDIA_DIR: "${SALES_MEDIA_DIR:-/data/media}"
+      INVOICE_MAX_BYTES: "${INVOICE_MAX_BYTES:-10485760}"
+    volumes:
+      - sales_media:/data/media
+    depends_on:
+      postgres-sales:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+    networks: [themis]
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    environment:
+      SERVICE_NAME: api-gateway
+      CATALOG_URL: "${CATALOG_URL:-http://catalog-service:8000}"
+      INVENTORY_URL: "${INVENTORY_URL:-http://inventory-service:8000}"
+      NOTIFICATION_URL: "${NOTIFICATION_URL:-http://notification-service:8000}"
+      SALES_URL: "${SALES_URL:-http://sales-service:8000}"
+      STATIC_DIR: /app/static
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    depends_on:
+      catalog-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      sales-service:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+    networks: [themis]
+
+volumes:
+  catalog_pgdata:
+  inventory_pgdata:
+  notification_pgdata:
+  sales_pgdata:
+  catalog_media:
+  sales_media:
+
+networks:
+  themis:
+    driver: bridge

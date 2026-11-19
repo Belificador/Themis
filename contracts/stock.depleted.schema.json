@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://themis.local/contracts/stock.depleted.schema.json",
+  "title": "StockDepletedEvent",
+  "description": "Evento emitido por inventory-service cuando un producto cruza su umbral minimo de stock. Version 1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "event_type",
+    "product_id",
+    "sku",
+    "product_name",
+    "current_stock",
+    "threshold",
+    "timestamp"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador unico e idempotente del evento."
+    },
+    "event_type": {
+      "type": "string",
+      "enum": ["stock.depleted", "stock.replenished"],
+      "description": "stock.depleted al cruzar el umbral hacia abajo; stock.replenished al recuperarse."
+    },
+    "product_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador del producto originado en catalog-service."
+    },
+    "sku": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SKU/variante del producto."
+    },
+    "product_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Nombre legible: marca modelo almacenamiento color."
+    },
+    "current_stock": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Stock resultante tras el movimiento."
+    },
+    "threshold": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Umbral minimo configurado en el producto."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Instante UTC del evento en formato ISO-8601."
+    },
+    "correlation_id": {
+      "type": ["string", "null"],
+      "description": "Identificador de correlacion propagado desde el borde HTTP o desde el evento previo."
+    }
+  }
+}
