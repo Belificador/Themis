@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     configure_logging(settings.service_name, settings.log_level)
     Path(settings.media_dir).mkdir(parents=True, exist_ok=True)
-    await init_models(engine, Base)
+    await init_models(engine, Base, schema=settings.db_schema)
 
     broker = create_broker(
         settings.products_exchange, rabbitmq_url=settings.rabbitmq_url

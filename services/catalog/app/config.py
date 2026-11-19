@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_anon_key: str = ""
     supabase_bucket_product_images: str = "product-images"
+    # Supabase PostgreSQL (esquema por servicio)
+    supabase_ref: str = "yeaylufnjeyiutyxqict"
+    supabase_db_password: str = ""
+    db_schema: str = "catalog"
     log_level: str = "INFO"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

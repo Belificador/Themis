@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     notification_queue: str = "notification.stock_events"
     dedupe_window_seconds: int = 300
     max_attempts: int = 3
+    # Supabase PostgreSQL (esquema por servicio)
+    supabase_ref: str = "yeaylufnjeyiutyxqict"
+    supabase_db_password: str = ""
+    db_schema: str = "notification"
     log_level: str = "INFO"
 
     telegram_enabled: bool = True

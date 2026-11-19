@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_service_role_key: str = ""
     supabase_bucket_invoices: str = "sales-invoices"
+    supabase_ref: str = "yeaylufnjeyiutyxqict"
+    supabase_db_password: str = ""
+    db_schema: str = "sales"
     log_level: str = "INFO"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

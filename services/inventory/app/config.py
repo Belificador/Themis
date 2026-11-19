@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     stock_exchange: str = "stock"
     inventory_queue: str = "inventory.product_events"
     outbox_interval_seconds: float = 1.0
+    # Supabase PostgreSQL (esquema por servicio)
+    supabase_ref: str = "yeaylufnjeyiutyxqict"
+    supabase_db_password: str = ""
+    db_schema: str = "inventory"
     log_level: str = "INFO"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

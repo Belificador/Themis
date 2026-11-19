@@ -1,70 +1,6 @@
 name: themis
 
 services:
-  postgres-catalog:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: catalog
-      POSTGRES_PASSWORD: catalog
-      POSTGRES_DB: catalog
-    volumes:
-      - catalog_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U catalog -d catalog"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-    networks: [themis]
-
-  postgres-inventory:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: inventory
-      POSTGRES_PASSWORD: inventory
-      POSTGRES_DB: inventory
-    volumes:
-      - inventory_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U inventory -d inventory"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-    networks: [themis]
-
-  postgres-notification:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: notification
-      POSTGRES_PASSWORD: notification
-      POSTGRES_DB: notification
-    volumes:
-      - notification_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U notification -d notification"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-    networks: [themis]
-
-  postgres-sales:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: sales
-      POSTGRES_PASSWORD: sales
-      POSTGRES_DB: sales
-    volumes:
-      - sales_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sales -d sales"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-    networks: [themis]
-
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     environment:
@@ -86,7 +22,7 @@ services:
       dockerfile: services/catalog/Dockerfile
     environment:
       SERVICE_NAME: catalog-service
-      DATABASE_URL: "${CATALOG_DATABASE_URL:-postgresql+asyncpg://catalog:catalog@postgres-catalog:5432/catalog}"
+      DATABASE_URL: "${CATALOG_DATABASE_URL:-postgresql+asyncpg://catalog:catalog@localhost:5432/catalog}"
       RABBITMQ_URL: "${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}"
       PRODUCTS_EXCHANGE: "${PRODUCTS_EXCHANGE:-products}"
       OUTBOX_INTERVAL_SECONDS: "${OUTBOX_INTERVAL_SECONDS:-1}"
@@ -96,11 +32,9 @@ services:
       SUPABASE_URL: "${SUPABASE_URL:-}"
       SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY:-}"
       SUPABASE_BUCKET_PRODUCT_IMAGES: "${SUPABASE_BUCKET_PRODUCT_IMAGES:-product-images}"
-    volumes:
-      - catalog_media:/data/media
+      SUPABASE_DB_PASSWORD: "${SUPABASE_DB_PASSWORD:-}"
+      DB_SCHEMA: "${DB_SCHEMA_CATALOG:-catalog}"
     depends_on:
-      postgres-catalog:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     healthcheck:
@@ -122,16 +56,16 @@ services:
       dockerfile: services/inventory/Dockerfile
     environment:
       SERVICE_NAME: inventory-service
-      DATABASE_URL: "${INVENTORY_DATABASE_URL:-postgresql+asyncpg://inventory:inventory@postgres-inventory:5432/inventory}"
+      DATABASE_URL: "${INVENTORY_DATABASE_URL:-postgresql+asyncpg://inventory:inventory@localhost:5434/inventory}"
       RABBITMQ_URL: "${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}"
       PRODUCTS_EXCHANGE: "${PRODUCTS_EXCHANGE:-products}"
       STOCK_EXCHANGE: "${STOCK_EXCHANGE:-stock}"
       INVENTORY_QUEUE: "${INVENTORY_QUEUE:-inventory.product_events}"
       OUTBOX_INTERVAL_SECONDS: "${OUTBOX_INTERVAL_SECONDS:-1}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      SUPABASE_DB_PASSWORD: "${SUPABASE_DB_PASSWORD:-}"
+      DB_SCHEMA: "${DB_SCHEMA_INVENTORY:-inventory}"
     depends_on:
-      postgres-inventory:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     healthcheck:
@@ -153,7 +87,7 @@ services:
       dockerfile: services/notification/Dockerfile
     environment:
       SERVICE_NAME: notification-service
-      DATABASE_URL: "${NOTIFICATION_DATABASE_URL:-postgresql+asyncpg://notification:notification@postgres-notification:5432/notification}"
+      DATABASE_URL: "${NOTIFICATION_DATABASE_URL:-postgresql+asyncpg://notification:notification@localhost:5435/notification}"
       RABBITMQ_URL: "${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}"
       STOCK_EXCHANGE: "${STOCK_EXCHANGE:-stock}"
       NOTIFICATION_QUEUE: "${NOTIFICATION_QUEUE:-notification.stock_events}"
@@ -168,9 +102,9 @@ services:
       WHATSAPP_PHONE_NUMBER_ID: "${WHATSAPP_PHONE_NUMBER_ID:-}"
       WHATSAPP_RECIPIENT: "${WHATSAPP_RECIPIENT:-}"
       WHATSAPP_API_VERSION: "${WHATSAPP_API_VERSION:-v20.0}"
+      SUPABASE_DB_PASSWORD: "${SUPABASE_DB_PASSWORD:-}"
+      DB_SCHEMA: "${DB_SCHEMA_NOTIFICATION:-notification}"
     depends_on:
-      postgres-notification:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     healthcheck:
@@ -192,7 +126,7 @@ services:
       dockerfile: services/sales/Dockerfile
     environment:
       SERVICE_NAME: sales-service
-      DATABASE_URL: "${SALES_DATABASE_URL:-postgresql+asyncpg://sales:sales@postgres-sales:5432/sales}"
+      DATABASE_URL: "${SALES_DATABASE_URL:-postgresql+asyncpg://sales:sales@localhost:5436/sales}"
       CATALOG_URL: "${CATALOG_URL:-http://catalog-service:8000}"
       INVENTORY_URL: "${INVENTORY_URL:-http://inventory-service:8000}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
@@ -201,11 +135,9 @@ services:
       SUPABASE_URL: "${SUPABASE_URL:-}"
       SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY:-}"
       SUPABASE_BUCKET_INVOICES: "${SUPABASE_BUCKET_INVOICES:-sales-invoices}"
-    volumes:
-      - sales_media:/data/media
+      SUPABASE_DB_PASSWORD: "${SUPABASE_DB_PASSWORD:-}"
+      DB_SCHEMA: "${DB_SCHEMA_SALES:-sales}"
     depends_on:
-      postgres-sales:
-        condition: service_healthy
       catalog-service:
         condition: service_healthy
       inventory-service:
@@ -260,10 +192,6 @@ services:
     networks: [themis]
 
 volumes:
-  catalog_pgdata:
-  inventory_pgdata:
-  notification_pgdata:
-  sales_pgdata:
   catalog_media:
   sales_media:
 

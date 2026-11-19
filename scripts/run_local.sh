@@ -23,6 +23,13 @@ if [ "${1:-}" = "--fresh" ]; then
   shift
 fi
 
+# Si se configura SUPABASE_DB_PASSWORD, todos los servicios usan Supabase
+# PostgreSQL en lugar de SQLite local.
+SUPABASE_DB_URL=""
+if [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
+  SUPABASE_DB_URL="postgresql+asyncpg://postgres:${SUPABASE_DB_PASSWORD}@db.yeaylufnjeyiutyxqict.supabase.co:5432/postgres?sslmode=require"
+fi
+
 PYTHON="${PYTHON:-$VENV/bin/python}"
 if [ ! -x "$PYTHON" ]; then
   echo "Creando venv local en $VENV"
@@ -92,7 +99,7 @@ start event-relay "$ROOT/services/event-relay" 8090 \
 echo "Arrancando microservicios…"
 start catalog-service "$ROOT/services/catalog" 8001 \
   SERVICE_NAME=catalog-service \
-  DATABASE_URL="sqlite+aiosqlite:///$DATA/catalog.db" \
+  DATABASE_URL="${SUPABASE_DB_URL:-sqlite+aiosqlite:///$DATA/catalog.db}" \
   EVENT_BUS=http \
   EVENT_RELAY_URL=http://127.0.0.1:8090 \
   PRODUCTS_EXCHANGE=products \
@@ -101,23 +108,27 @@ start catalog-service "$ROOT/services/catalog" 8001 \
   SUPABASE_URL="${SUPABASE_URL:-}" \
   SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}" \
   SUPABASE_BUCKET_PRODUCT_IMAGES="${SUPABASE_BUCKET_PRODUCT_IMAGES:-product-images}" \
+  SUPABASE_DB_PASSWORD="${SUPABASE_DB_PASSWORD:-}" \
+  DB_SCHEMA=catalog \
   OUTBOX_INTERVAL_SECONDS=0.5 \
   LOG_LEVEL=INFO
 
 start inventory-service "$ROOT/services/inventory" 8002 \
   SERVICE_NAME=inventory-service \
-  DATABASE_URL="sqlite+aiosqlite:///$DATA/inventory.db" \
+  DATABASE_URL="${SUPABASE_DB_URL:-sqlite+aiosqlite:///$DATA/inventory.db}" \
   EVENT_BUS=http \
   EVENT_RELAY_URL=http://127.0.0.1:8090 \
   PRODUCTS_EXCHANGE=products \
   STOCK_EXCHANGE=stock \
   INVENTORY_QUEUE=inventory.product_events \
   OUTBOX_INTERVAL_SECONDS=0.5 \
-  LOG_LEVEL=INFO
+  LOG_LEVEL=INFO \
+  SUPABASE_DB_PASSWORD="${SUPABASE_DB_PASSWORD:-}" \
+  DB_SCHEMA=inventory
 
 start notification-service "$ROOT/services/notification" 8003 \
   SERVICE_NAME=notification-service \
-  DATABASE_URL="sqlite+aiosqlite:///$DATA/notification.db" \
+  DATABASE_URL="${SUPABASE_DB_URL:-sqlite+aiosqlite:///$DATA/notification.db}" \
   EVENT_BUS=http \
   EVENT_RELAY_URL=http://127.0.0.1:8090 \
   STOCK_EXCHANGE=stock \
@@ -132,11 +143,13 @@ start notification-service "$ROOT/services/notification" 8003 \
   WHATSAPP_TOKEN= \
   WHATSAPP_PHONE_NUMBER_ID= \
   WHATSAPP_RECIPIENT= \
-  WHATSAPP_API_VERSION=v20.0
+  WHATSAPP_API_VERSION=v20.0 \
+  SUPABASE_DB_PASSWORD="${SUPABASE_DB_PASSWORD:-}" \
+  DB_SCHEMA=notification
 
 start sales-service "$ROOT/services/sales" 8004 \
   SERVICE_NAME=sales-service \
-  DATABASE_URL="sqlite+aiosqlite:///$DATA/sales.db" \
+  DATABASE_URL="${SUPABASE_DB_URL:-sqlite+aiosqlite:///$DATA/sales.db}" \
   CATALOG_URL=http://127.0.0.1:8001 \
   INVENTORY_URL=http://127.0.0.1:8002 \
   MEDIA_DIR="$DATA/sales-media" \
@@ -144,6 +157,8 @@ start sales-service "$ROOT/services/sales" 8004 \
   SUPABASE_URL="${SUPABASE_URL:-}" \
   SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}" \
   SUPABASE_BUCKET_INVOICES="${SUPABASE_BUCKET_INVOICES:-sales-invoices}" \
+  SUPABASE_DB_PASSWORD="${SUPABASE_DB_PASSWORD:-}" \
+  DB_SCHEMA=sales \
   LOG_LEVEL=INFO
 
 start api-gateway "$ROOT/gateway" 8080 \

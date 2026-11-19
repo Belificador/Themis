@@ -10,7 +10,12 @@ class Base(DeclarativeBase):
     pass
 
 
-engine = create_engine(settings.database_url)
+engine = create_engine(
+    settings.database_url,
+    schema=settings.db_schema,
+    supabase_ref=settings.supabase_ref,
+    supabase_password=settings.supabase_db_password,
+)
 SessionLocal = create_session_factory(engine)
 
 
