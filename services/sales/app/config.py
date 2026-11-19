@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     request_timeout_seconds: float = 20.0
     media_dir: str = "./media"
     invoice_max_bytes: int = 10 * 1024 * 1024
+    supabase_url: str = ""
+    supabase_service_role_key: str = ""
+    supabase_bucket_invoices: str = "sales-invoices"
     log_level: str = "INFO"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

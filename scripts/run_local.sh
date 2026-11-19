@@ -10,6 +10,13 @@ LOGS="$LOCAL/logs"
 PIDS="$LOCAL/pids"
 mkdir -p "$DATA" "$LOGS" "$PIDS" "$DATA/catalog-media" "$DATA/sales-media"
 
+# Carga variables de entorno desde .env si existe (no se sube a GitHub)
+if [ -f "$ROOT/.env" ]; then
+  set -a
+  . "$ROOT/.env"
+  set +a
+fi
+
 if [ "${1:-}" = "--fresh" ]; then
   "$ROOT/scripts/stop_local.sh" >/dev/null 2>&1 || true
   rm -f "$DATA"/*.db
@@ -91,6 +98,9 @@ start catalog-service "$ROOT/services/catalog" 8001 \
   PRODUCTS_EXCHANGE=products \
   MEDIA_DIR="$DATA/catalog-media" \
   IMAGE_MAX_BYTES=5242880 \
+  SUPABASE_URL="${SUPABASE_URL:-}" \
+  SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}" \
+  SUPABASE_BUCKET_PRODUCT_IMAGES="${SUPABASE_BUCKET_PRODUCT_IMAGES:-product-images}" \
   OUTBOX_INTERVAL_SECONDS=0.5 \
   LOG_LEVEL=INFO
 
@@ -131,6 +141,9 @@ start sales-service "$ROOT/services/sales" 8004 \
   INVENTORY_URL=http://127.0.0.1:8002 \
   MEDIA_DIR="$DATA/sales-media" \
   INVOICE_MAX_BYTES=10485760 \
+  SUPABASE_URL="${SUPABASE_URL:-}" \
+  SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}" \
+  SUPABASE_BUCKET_INVOICES="${SUPABASE_BUCKET_INVOICES:-sales-invoices}" \
   LOG_LEVEL=INFO
 
 start api-gateway "$ROOT/gateway" 8080 \

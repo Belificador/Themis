@@ -10,7 +10,6 @@ import {
 } from '../format'
 import { Icon } from '../icons'
 import casheaLogo from '../assets/cashea-logo.png'
-import { invoiceUrl } from '../media'
 import type {
   Currency,
   DashboardRow,
@@ -84,6 +83,7 @@ export function SaleDrawer({
   const [invoiceInputKey, setInvoiceInputKey] = useState(0)
   const [invoiceBusy, setInvoiceBusy] = useState(false)
   const [invoiceError, setInvoiceError] = useState<string | null>(null)
+  const [receiptInvoiceUrl, setReceiptInvoiceUrl] = useState<string | null>(null)
 
   const refreshProducts = () => {
     setLoading(true)
@@ -140,6 +140,25 @@ export function SaleDrawer({
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
   }, [paymentOpen])
+
+  useEffect(() => {
+    let active = true
+    if (!receipt?.invoice_uploaded_at) {
+      setReceiptInvoiceUrl(null)
+      return
+    }
+    api
+      .invoiceUrl(receipt.id)
+      .then((data) => {
+        if (active) setReceiptInvoiceUrl(data.url)
+      })
+      .catch(() => {
+        if (active) setReceiptInvoiceUrl(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [receipt?.id, receipt?.invoice_uploaded_at])
 
   const totals = useMemo(() => {
     const subtotal = round2(
@@ -389,7 +408,7 @@ export function SaleDrawer({
 
               <div className="form-section">
                 <h3>Factura fiscal (opcional)</h3>
-                {receipt.invoice_uploaded_at && invoiceUrl(receipt) ? (
+                {receipt.invoice_uploaded_at && receiptInvoiceUrl ? (
                   <div className="invoice-meta">
                     <span>
                       <Icon name="receipt" size={16} />
@@ -397,7 +416,7 @@ export function SaleDrawer({
                     </span>
                     <a
                       className="link-btn"
-                      href={invoiceUrl(receipt) ?? undefined}
+                      href={receiptInvoiceUrl}
                       target="_blank"
                       rel="noreferrer"
                     >

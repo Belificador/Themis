@@ -303,8 +303,9 @@ docker compose up --build         # arranque reproducible
 
 ## Decisiones y límites conocidos
 
-- **Sin migraciones**: las tablas se crean al arrancar con `create_all` para
-  mantener el ejemplo simple. En producción: Alembic por servicio.
+- **Frontend y backend separados:** el backend vive en `services/`, `gateway/` y `libs/`; el frontend en `frontend/`. El gateway solo empaqueta el build estático de Vite para servirlo en producción.
+- **Nunca commitees `.env`:** ya está ignorado por `.gitignore`. Copia `.env.example` a `.env` y ajusta contraseñas, tokens, URLs y claves de Supabase antes de levantar.
+- **Sin migraciones**: las tablas se crean al arrancar con `create_all` para mantener el ejemplo simple. En producción: Alembic por servicio.
 - **Entrega at-least-once**: el outbox garantiza publicación fiable; los
   consumidores son idempotentes. El dispatcher usa `FOR UPDATE SKIP LOCKED`.
 - **Sin autenticación**: el gateway es abierto para la demo. Añadir auth/JWT y
@@ -316,13 +317,29 @@ docker compose up --build         # arranque reproducible
   `skills/messaging-alerts-telegram-whatsapp`) documentan los principios que
   sigue esta implementación.
 
-## Repositorio y variables de entorno
+## Conectar Supabase Storage (imágenes y facturas)
 
-- **Backend y frontend están separados:** el código de backend vive en `services/`, `gateway/` y `libs/`; el frontend vive en `frontend/`. El gateway solo empaqueta el build estático de Vite para servirlo en producción.
-- **Nunca commitees `.env`:** ya está ignorado por `.gitignore`. Copia `.env.example` a `.env` y ajusta contraseñas, tokens y URLs antes de levantar con Docker:
-  ```sh
-  cp .env.example .env
-  docker compose up --build
-  ```
-- En modo local sin Docker, `scripts/run_local.sh` inyecta las variables de entorno directamente y usa SQLite aislado por servicio.
-- Las bases de datos se crean con `create_all`; no hay Alembic. Si cambias el esquema, reinicia con `./scripts/run_local.sh --fresh` (local) o `docker compose down -v` (Docker).
+Las imágenes de teléfono y las facturas se suben a Supabase Storage en lugar de disco local.
+
+1. En tu proyecto de Supabase, ve a **Settings → API** y copia:
+   - **Project URL** → `SUPABASE_URL`
+   - **anon public** → `SUPABASE_ANON_KEY`
+   - **service_role secret** → `SUPABASE_SERVICE_ROLE_KEY`
+2. Cópialas a `.env` (está ignorado por `.gitignore`, nunca se sube a GitHub).
+3. Crea dos buckets en **Storage**:
+   - `product-images` → **Público** (imágenes de teléfonos, URL directa).
+   - `sales-invoices` → **Privado** (facturas, solo accesibles mediante URL firmada temporal desde la app).
+4. Levanta con Docker:
+   ```sh
+   cp .env.example .env
+   # edita .env con tus valores reales de Supabase
+   docker compose up --build
+   ```
+   O en modo local:
+   ```sh
+   ./scripts/run_local.sh --fresh
+   ```
+   `run_local.sh` carga `.env` automáticamente si existe.
+
+Sin `SUPABASE_URL` configurado, el sistema guarda imágenes y facturas en disco local (`media/`) como respaldo.
+

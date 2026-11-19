@@ -4,11 +4,17 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
-from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
-from ..invoices import attach_invoice, clear_invoice, invoice_path
+from ..invoices import (
+    attach_invoice,
+    clear_invoice_metadata,
+    invoice_storage_path,
+    _supabase_delete,
+    _supabase_signed_url,
+    _use_supabase,
+)
 from ..models import Sale
 from ..schemas import Currency, SaleCreate, SaleRead
 from ..service import create_sale, get_sale, list_sales, sales_summary
@@ -56,23 +62,17 @@ async def upload_invoice(
     return await get_sale(session, sale.id)
 
 
-@router.get("/{sale_id}/invoice")
-async def download_invoice(
+@router.get("/{sale_id}/invoice-url")
+async def get_invoice_url(
     sale_id: uuid.UUID,
-    download: bool = Query(default=False),
     session: AsyncSession = Depends(get_session),
-) -> FileResponse:
+) -> dict:
     sale = await get_sale(session, sale_id)
-    path = invoice_path(sale)
-    if path is None or not path.is_file():
+    storage_path = invoice_storage_path(sale)
+    if not storage_path:
         raise HTTPException(status_code=404, detail="invoice not found")
-    return FileResponse(
-        path,
-        media_type=sale.invoice_content_type or "application/octet-stream",
-        filename=sale.invoice_filename or path.name,
-        content_disposition_type="attachment" if download else "inline",
-        headers={"Cache-Control": "private, max-age=60"},
-    )
+    signed = await _supabase_signed_url(storage_path)
+    return {"url": signed}
 
 
 @router.delete("/{sale_id}/invoice", status_code=204)
@@ -80,7 +80,9 @@ async def delete_invoice(
     sale_id: uuid.UUID, session: AsyncSession = Depends(get_session)
 ) -> Response:
     sale = await get_sale(session, sale_id)
-    clear_invoice(sale)
+    if _use_supabase() and sale.invoice_stored_name:
+        await _supabase_delete(sale.invoice_stored_name)
+    clear_invoice_metadata(sale)
     await session.commit()
     return Response(status_code=204)
 

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { dateTime, money, paymentLabel, statusLabel } from '../format'
 import { Icon } from '../icons'
-import { invoiceUrl } from '../media'
 import type { Sale } from '../types'
 
 function fileSize(bytes: number | null): string {
@@ -26,6 +25,7 @@ export function SaleDetailDrawer({
   const [inputKey, setInputKey] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [invoicePreviewUrl, setInvoicePreviewUrl] = useState<string | null>(null)
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -40,7 +40,26 @@ export function SaleDetailDrawer({
     }
   }, [busy, onClose])
 
-  const preview = invoiceUrl(current)
+  useEffect(() => {
+    let active = true
+    if (!current.invoice_uploaded_at) {
+      setInvoicePreviewUrl(null)
+      return
+    }
+    api
+      .invoiceUrl(current.id)
+      .then((data) => {
+        if (active) setInvoicePreviewUrl(data.url)
+      })
+      .catch(() => {
+        if (active) setInvoicePreviewUrl(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [current.id, current.invoice_uploaded_at])
+
+  const preview = invoicePreviewUrl
   const isImage = current.invoice_content_type?.startsWith('image/')
 
   const upload = async () => {
@@ -195,7 +214,7 @@ export function SaleDetailDrawer({
                 <div className="row-actions">
                   <a
                     className="btn btn-ghost btn-sm"
-                    href={invoiceUrl(current, true) ?? preview}
+                    href={preview ?? undefined}
                   >
                     Descargar
                   </a>

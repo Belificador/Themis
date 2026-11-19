@@ -7,6 +7,7 @@ from typing import Optional
 
 from fastapi import HTTPException, UploadFile
 
+from egm_common.supabase_client import SupabaseClient
 from .config import settings
 from .models import Sale
 
@@ -17,15 +18,23 @@ INVOICE_TYPES = {
     "application/pdf": ".pdf",
 }
 
+supabase_client = (
+    SupabaseClient(
+        base_url=settings.supabase_url,
+        anon_key="",
+        service_role_key=settings.supabase_service_role_key,
+    )
+    if settings.supabase_url and settings.supabase_service_role_key
+    else None
+)
 
-def _invoice_dir(sale_id: uuid.UUID) -> Path:
-    return Path(settings.media_dir) / "invoices" / str(sale_id)
+
+def _use_supabase() -> bool:
+    return supabase_client is not None
 
 
-def invoice_path(sale: Sale) -> Optional[Path]:
-    if not sale.invoice_stored_name:
-        return None
-    return _invoice_dir(sale.id) / sale.invoice_stored_name
+def _supabase_storage_path(sale_id: uuid.UUID, extension: str) -> str:
+    return f"invoices/{sale_id}/{uuid.uuid4().hex}{extension}"
 
 
 def _valid_invoice(data: bytes, content_type: str) -> bool:
@@ -38,6 +47,41 @@ def _valid_invoice(data: bytes, content_type: str) -> bool:
     if content_type == "image/webp":
         return data.startswith(b"RIFF") and data[8:12] == b"WEBP"
     return False
+
+
+async def _supabase_upload(
+    storage_path: str, data: bytes, content_type: str
+) -> None:
+    if not supabase_client:
+        return
+    await supabase_client.upload_public(
+        bucket=settings.supabase_bucket_invoices,
+        path=storage_path,
+        data=data,
+        content_type=content_type,
+    )
+
+
+async def _supabase_delete(storage_path: Optional[str]) -> None:
+    if not supabase_client or not storage_path:
+        return
+    await supabase_client.delete_object(
+        bucket=settings.supabase_bucket_invoices, path=storage_path
+    )
+
+
+async def _supabase_signed_url(storage_path: str, expires_in: int = 900) -> str:
+    if not supabase_client:
+        raise RuntimeError("supabase not configured")
+    return await supabase_client.create_signed_url(
+        bucket=settings.supabase_bucket_invoices,
+        path=storage_path,
+        expires_in=expires_in,
+    )
+
+
+def invoice_storage_path(sale: Sale) -> Optional[str]:
+    return sale.invoice_stored_name
 
 
 async def attach_invoice(sale: Sale, upload: UploadFile) -> None:
@@ -55,28 +99,20 @@ async def attach_invoice(sale: Sale, upload: UploadFile) -> None:
     if not data or not _valid_invoice(data, content_type):
         raise HTTPException(status_code=400, detail="invalid invoice file")
 
-    directory = _invoice_dir(sale.id)
-    directory.mkdir(parents=True, exist_ok=True)
-    stored_name = f"{uuid.uuid4().hex}{extension}"
-    path = directory / stored_name
-    path.write_bytes(data)
-
-    old_path = invoice_path(sale)
-    if old_path is not None and old_path != path:
-        old_path.unlink(missing_ok=True)
+    old_storage_path = sale.invoice_stored_name if _use_supabase() else None
+    storage_path = _supabase_storage_path(sale.id, extension)
+    await _supabase_upload(storage_path, data, content_type)
+    await _supabase_delete(old_storage_path)
 
     original = Path(upload.filename or f"factura{extension}").name[:255]
-    sale.invoice_stored_name = stored_name
+    sale.invoice_stored_name = storage_path
     sale.invoice_filename = original or f"factura{extension}"
     sale.invoice_content_type = content_type
     sale.invoice_size = len(data)
     sale.invoice_uploaded_at = datetime.now(timezone.utc)
 
 
-def clear_invoice(sale: Sale) -> None:
-    path = invoice_path(sale)
-    if path is not None:
-        path.unlink(missing_ok=True)
+def clear_invoice_metadata(sale: Sale) -> None:
     sale.invoice_stored_name = None
     sale.invoice_filename = None
     sale.invoice_content_type = None

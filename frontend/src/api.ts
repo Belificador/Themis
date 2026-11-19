@@ -109,4 +109,6 @@ export const api = {
     request<void>(`/api/sales/${saleId}/invoice`, {
       method: 'DELETE',
     }),
+  invoiceUrl: (saleId: string) =>
+    request<{ url: string }>(`/api/sales/${saleId}/invoice-url`),
 }
