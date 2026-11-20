@@ -8,11 +8,6 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql+asyncpg://notification:notification@localhost:5435/notification"
     )
-    rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
-    stock_exchange: str = "stock"
-    notification_queue: str = "notification.stock_events"
-    dedupe_window_seconds: int = 300
-    max_attempts: int = 3
     # Supabase PostgreSQL (esquema por servicio)
     supabase_ref: str = "yeaylufnjeyiutyxqict"
     supabase_db_password: str = ""

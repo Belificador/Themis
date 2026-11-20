@@ -1,31 +1,13 @@
 name: themis
 
 services:
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    ports:
-      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-    networks: [themis]
-
   catalog-service:
     build:
       context: .
       dockerfile: services/catalog/Dockerfile
     environment:
       SERVICE_NAME: catalog-service
-      DATABASE_URL: "${CATALOG_DATABASE_URL:-postgresql+asyncpg://catalog:catalog@localhost:5432/catalog}"
-      RABBITMQ_URL: "${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}"
-      PRODUCTS_EXCHANGE: "${PRODUCTS_EXCHANGE:-products}"
-      OUTBOX_INTERVAL_SECONDS: "${OUTBOX_INTERVAL_SECONDS:-1}"
+      DATABASE_URL: "${CATALOG_DATABASE_URL:-postgresql+asyncpg://catalog:catalog@localhost:5433/catalog}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
       MEDIA_DIR: "${CATALOG_MEDIA_DIR:-/data/media}"
       IMAGE_MAX_BYTES: "${IMAGE_MAX_BYTES:-5242880}"
@@ -34,9 +16,6 @@ services:
       SUPABASE_BUCKET_PRODUCT_IMAGES: "${SUPABASE_BUCKET_PRODUCT_IMAGES:-product-images}"
       SUPABASE_DB_PASSWORD: "${SUPABASE_DB_PASSWORD:-}"
       DB_SCHEMA: "${DB_SCHEMA_CATALOG:-catalog}"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
     healthcheck:
       test:
         - CMD
@@ -57,17 +36,9 @@ services:
     environment:
       SERVICE_NAME: inventory-service
       DATABASE_URL: "${INVENTORY_DATABASE_URL:-postgresql+asyncpg://inventory:inventory@localhost:5434/inventory}"
-      RABBITMQ_URL: "${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}"
-      PRODUCTS_EXCHANGE: "${PRODUCTS_EXCHANGE:-products}"
-      STOCK_EXCHANGE: "${STOCK_EXCHANGE:-stock}"
-      INVENTORY_QUEUE: "${INVENTORY_QUEUE:-inventory.product_events}"
-      OUTBOX_INTERVAL_SECONDS: "${OUTBOX_INTERVAL_SECONDS:-1}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
       SUPABASE_DB_PASSWORD: "${SUPABASE_DB_PASSWORD:-}"
       DB_SCHEMA: "${DB_SCHEMA_INVENTORY:-inventory}"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
     healthcheck:
       test:
         - CMD
@@ -88,11 +59,6 @@ services:
     environment:
       SERVICE_NAME: notification-service
       DATABASE_URL: "${NOTIFICATION_DATABASE_URL:-postgresql+asyncpg://notification:notification@localhost:5435/notification}"
-      RABBITMQ_URL: "${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}"
-      STOCK_EXCHANGE: "${STOCK_EXCHANGE:-stock}"
-      NOTIFICATION_QUEUE: "${NOTIFICATION_QUEUE:-notification.stock_events}"
-      DEDUPE_WINDOW_SECONDS: "${DEDUPE_WINDOW_SECONDS:-300}"
-      MAX_ATTEMPTS: "${MAX_ATTEMPTS:-3}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
       TELEGRAM_ENABLED: "${TELEGRAM_ENABLED:-true}"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
@@ -104,9 +70,6 @@ services:
       WHATSAPP_API_VERSION: "${WHATSAPP_API_VERSION:-v20.0}"
       SUPABASE_DB_PASSWORD: "${SUPABASE_DB_PASSWORD:-}"
       DB_SCHEMA: "${DB_SCHEMA_NOTIFICATION:-notification}"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
     healthcheck:
       test:
         - CMD

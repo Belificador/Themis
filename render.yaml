@@ -9,12 +9,6 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
-      - key: RABBITMQ_URL
-        sync: false
-      - key: PRODUCTS_EXCHANGE
-        value: products
-      - key: OUTBOX_INTERVAL_SECONDS
-        value: "1"
       - key: LOG_LEVEL
         value: INFO
       - key: MEDIA_DIR
@@ -42,16 +36,6 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
-      - key: RABBITMQ_URL
-        sync: false
-      - key: PRODUCTS_EXCHANGE
-        value: products
-      - key: STOCK_EXCHANGE
-        value: stock
-      - key: INVENTORY_QUEUE
-        value: inventory.product_events
-      - key: OUTBOX_INTERVAL_SECONDS
-        value: "1"
       - key: LOG_LEVEL
         value: INFO
       - key: SUPABASE_DB_PASSWORD
@@ -69,16 +53,6 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
-      - key: RABBITMQ_URL
-        sync: false
-      - key: STOCK_EXCHANGE
-        value: stock
-      - key: NOTIFICATION_QUEUE
-        value: notification.stock_events
-      - key: DEDUPE_WINDOW_SECONDS
-        value: "300"
-      - key: MAX_ATTEMPTS
-        value: "3"
       - key: LOG_LEVEL
         value: INFO
       - key: TELEGRAM_ENABLED

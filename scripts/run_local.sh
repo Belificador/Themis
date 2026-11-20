@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local, Docker-free demo: SQLite per service + HTTP event relay.
+# Local, Docker-free demo: SQLite per service.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -48,7 +48,10 @@ if ! "$PYTHON" -c "import aiosqlite" >/dev/null 2>&1; then
 fi
 
 if ! "$PYTHON" -c "import multipart" >/dev/null 2>&1; then
-  "$PYTHON" -m pip install -q     -r "$ROOT/services/catalog/requirements.txt"     -r "$ROOT/services/sales/requirements.txt"     -r "$ROOT/gateway/requirements.txt"
+  "$PYTHON" -m pip install -q \
+    -r "$ROOT/services/catalog/requirements.txt" \
+    -r "$ROOT/services/sales/requirements.txt" \
+    -r "$ROOT/gateway/requirements.txt"
 fi
 
 export PYTHONPATH="$ROOT/libs"
@@ -90,19 +93,10 @@ wait_http() {
   return 1
 }
 
-echo "Arrancando event relay…"
-start event-relay "$ROOT/services/event-relay" 8090 \
-  SERVICE_NAME=event-relay \
-  RELAY_DB="$DATA/relay.db" \
-  LOG_LEVEL=INFO
-
 echo "Arrancando microservicios…"
 start catalog-service "$ROOT/services/catalog" 8001 \
   SERVICE_NAME=catalog-service \
   DATABASE_URL="${SUPABASE_DB_URL:-sqlite+aiosqlite:///$DATA/catalog.db}" \
-  EVENT_BUS=http \
-  EVENT_RELAY_URL=http://127.0.0.1:8090 \
-  PRODUCTS_EXCHANGE=products \
   MEDIA_DIR="$DATA/catalog-media" \
   IMAGE_MAX_BYTES=5242880 \
   SUPABASE_URL="${SUPABASE_URL:-}" \
@@ -110,18 +104,11 @@ start catalog-service "$ROOT/services/catalog" 8001 \
   SUPABASE_BUCKET_PRODUCT_IMAGES="${SUPABASE_BUCKET_PRODUCT_IMAGES:-product-images}" \
   SUPABASE_DB_PASSWORD="${SUPABASE_DB_PASSWORD:-}" \
   DB_SCHEMA=catalog \
-  OUTBOX_INTERVAL_SECONDS=0.5 \
   LOG_LEVEL=INFO
 
 start inventory-service "$ROOT/services/inventory" 8002 \
   SERVICE_NAME=inventory-service \
   DATABASE_URL="${SUPABASE_DB_URL:-sqlite+aiosqlite:///$DATA/inventory.db}" \
-  EVENT_BUS=http \
-  EVENT_RELAY_URL=http://127.0.0.1:8090 \
-  PRODUCTS_EXCHANGE=products \
-  STOCK_EXCHANGE=stock \
-  INVENTORY_QUEUE=inventory.product_events \
-  OUTBOX_INTERVAL_SECONDS=0.5 \
   LOG_LEVEL=INFO \
   SUPABASE_DB_PASSWORD="${SUPABASE_DB_PASSWORD:-}" \
   DB_SCHEMA=inventory
@@ -129,12 +116,6 @@ start inventory-service "$ROOT/services/inventory" 8002 \
 start notification-service "$ROOT/services/notification" 8003 \
   SERVICE_NAME=notification-service \
   DATABASE_URL="${SUPABASE_DB_URL:-sqlite+aiosqlite:///$DATA/notification.db}" \
-  EVENT_BUS=http \
-  EVENT_RELAY_URL=http://127.0.0.1:8090 \
-  STOCK_EXCHANGE=stock \
-  NOTIFICATION_QUEUE=notification.stock_events \
-  DEDUPE_WINDOW_SECONDS=300 \
-  MAX_ATTEMPTS=3 \
   LOG_LEVEL=INFO \
   TELEGRAM_ENABLED=true \
   TELEGRAM_BOT_TOKEN= \
@@ -171,7 +152,6 @@ start api-gateway "$ROOT/gateway" 8080 \
   LOG_LEVEL=INFO
 
 echo "Esperando health checks…"
-wait_http http://127.0.0.1:8090/health event-relay
 wait_http http://127.0.0.1:8001/health catalog-service
 wait_http http://127.0.0.1:8002/health inventory-service
 wait_http http://127.0.0.1:8003/health notification-service
