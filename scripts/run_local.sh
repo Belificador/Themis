@@ -27,7 +27,7 @@ fi
 # PostgreSQL en lugar de SQLite local.
 SUPABASE_DB_URL=""
 if [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
-  SUPABASE_DB_URL="postgresql+asyncpg://postgres:${SUPABASE_DB_PASSWORD}@db.yeaylufnjeyiutyxqict.supabase.co:5432/postgres?sslmode=require"
+  SUPABASE_DB_URL="postgresql+asyncpg://postgres:${SUPABASE_DB_PASSWORD}@db.yeaylufnjeyiutyxqict.supabase.co:5432/postgres"
 fi
 
 PYTHON="${PYTHON:-$VENV/bin/python}"

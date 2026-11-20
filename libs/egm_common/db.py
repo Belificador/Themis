@@ -18,10 +18,7 @@ def _supabase_schema_url(
 ) -> str:
     """Construye una URL de Supabase con SSL y search_path por esquema."""
     host = f"db.{ref}.supabase.co"
-    return (
-        f"postgresql+asyncpg://postgres:{password}@{host}:5432/postgres"
-        f"?sslmode=require&options=--search_path%3D{schema}"
-    )
+    return f"postgresql+asyncpg://postgres:{password}@{host}:5432/postgres"
 
 
 def create_engine(
