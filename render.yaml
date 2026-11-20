@@ -87,13 +87,9 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: CATALOG_URL
-        fromService:
-          name: catalog-service
-          property: url
+        sync: false
       - key: INVENTORY_URL
-        fromService:
-          name: inventory-service
-          property: url
+        sync: false
       - key: LOG_LEVEL
         value: INFO
       - key: MEDIA_DIR
@@ -122,21 +118,13 @@ services:
     startCommand: "cd gateway && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: CATALOG_URL
-        fromService:
-          name: catalog-service
-          property: url
+        sync: false
       - key: INVENTORY_URL
-        fromService:
-          name: inventory-service
-          property: url
+        sync: false
       - key: NOTIFICATION_URL
-        fromService:
-          name: notification-service
-          property: url
+        sync: false
       - key: SALES_URL
-        fromService:
-          name: sales-service
-          property: url
+        sync: false
       - key: STATIC_DIR
         value: /app/static
       - key: LOG_LEVEL
