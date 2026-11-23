@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     supabase_db_password: str = ""
     db_schema: str = "themis"
     log_level: str = "INFO"
+    dedupe_window_seconds: int = 0
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

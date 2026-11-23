@@ -1,20 +1,43 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from egm_common.db import init_models
 from egm_common.logging import CorrelationIdMiddleware, configure_logging
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from .config import settings
 from .db import Base, SessionLocal, engine
-from .routers import notifications, products, sales, stock
+from .routers import dashboard, notifications, products, sales, stock
 
 logger = logging.getLogger(__name__)
+
+
+def _find_frontend_dist() -> Path | None:
+    candidates = []
+    env_dir = Path(os.environ["FRONTEND_DIST"]) if os.environ.get("FRONTEND_DIST") else None
+    if env_dir:
+        candidates.append(env_dir)
+    here = Path(__file__).resolve()
+    # services/app/app/main.py -> repo root is parents[3]
+    for depth in (3, 2, 1):
+        if len(here.parents) > depth:
+            candidates.append(here.parents[depth] / "frontend" / "dist")
+    candidates.append(Path.cwd() / "frontend" / "dist")
+    candidates.append(Path.cwd() / "dist")
+    for candidate in candidates:
+        if (candidate / "index.html").is_file():
+            return candidate
+    return None
+
+
+FRONTEND_DIST = _find_frontend_dist()
 
 
 @asynccontextmanager
@@ -35,6 +58,7 @@ app.include_router(products.router)
 app.include_router(sales.router)
 app.include_router(stock.router)
 app.include_router(notifications.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/health", tags=["health"])
@@ -55,3 +79,22 @@ async def health() -> JSONResponse:
         },
         status_code=200 if status == "ok" else 503,
     )
+
+
+# Sirve el frontend compilado si existe (despliegue de un solo servicio).
+if FRONTEND_DIST.is_dir():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=FRONTEND_DIST / "assets"),
+        name="assets",
+    )
+
+    @app.get("/{full_path:path}", include_in_schema=False, response_model=None)
+    async def spa_fallback(full_path: str):
+        candidate = FRONTEND_DIST / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        index = FRONTEND_DIST / "index.html"
+        if index.is_file():
+            return FileResponse(index)
+        return JSONResponse({"detail": "frontend not built"}, status_code=404)

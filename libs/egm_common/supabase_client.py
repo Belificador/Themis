@@ -54,6 +54,28 @@ class SupabaseClient:
             )
         return f"{self.base_url}/storage/v1/object/public/{bucket}/{path}"
 
+    async def upload(
+        self,
+        bucket: str,
+        path: str,
+        data: bytes,
+        content_type: str,
+        upsert: bool = True,
+    ) -> None:
+        """Sube un objeto usando service_role (para buckets privados)."""
+        url = f"{self.base_url}/storage/v1/object/{bucket}/{path}"
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.post(
+                url,
+                content=data,
+                headers={**self._service_headers(), "Content-Type": content_type},
+                params={"upsert": "true" if upsert else "false"},
+            )
+        if response.status_code not in (200, 201):
+            raise RuntimeError(
+                f"supabase upload failed ({response.status_code}): {response.text[:300]}"
+            )
+
     async def delete_object(self, bucket: str, path: str) -> None:
         url = f"{self.base_url}/storage/v1/object/{bucket}/{path}"
         async with httpx.AsyncClient(timeout=self.timeout) as client:

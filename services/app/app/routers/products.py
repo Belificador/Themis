@@ -11,12 +11,12 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .config import settings
-from .db import get_session
-from .models import Product
-from .schemas import ProductCreate, ProductRead, ProductUpdate
+from ..config import settings
+from ..db import get_session
+from ..models import Product, StockItem
+from ..schemas import ProductCreate, ProductRead, ProductUpdate
 
-router = APIRouter(prefix="/products", tags=["products"])
+router = APIRouter(prefix="/api/catalog/products", tags=["products"])
 
 IMAGE_TYPES = {
     "image/jpeg": ".jpg",
@@ -67,13 +67,9 @@ async def _supabase_delete(storage_path: Optional[str]) -> None:
         await supabase_client.delete_object(bucket=settings.supabase_bucket_product_images, path=storage_path)
 
 
-def _delete_image_file(product: Product, session: AsyncSession) -> None:
+async def _delete_image_file(product: Product) -> None:
     if _use_supabase() and product.image_stored_name:
-        import asyncio
-        try:
-            asyncio.get_event_loop().run_until_complete(_supabase_delete(product.image_stored_name))
-        except RuntimeError:
-            asyncio.run(_supabase_delete(product.image_stored_name))
+        await _supabase_delete(product.image_stored_name)
     product.image_stored_name = None
     product.image_content_type = None
     product.image_size = None
@@ -89,6 +85,16 @@ async def create_product(payload: ProductCreate, session: AsyncSession = Depends
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=409, detail=f"SKU '{payload.sku}' already exists")
+    session.add(
+        StockItem(
+            product_id=product.id,
+            sku=product.sku,
+            product_name=product.product_name,
+            threshold=product.threshold,
+            quantity=0,
+            alert_state="pending",
+        )
+    )
     await session.commit()
     await session.refresh(product)
     return product
@@ -118,6 +124,11 @@ async def update_product(product_id: uuid.UUID, payload: ProductUpdate, session:
         return product
     for field, value in data.items():
         setattr(product, field, value)
+    stock_item = await session.get(StockItem, product.id)
+    if stock_item is not None:
+        stock_item.sku = product.sku
+        stock_item.product_name = product.product_name
+        stock_item.threshold = product.threshold
     try:
         await session.flush()
     except IntegrityError:
@@ -198,6 +209,6 @@ async def delete_product_image(product_id: uuid.UUID, session: AsyncSession = De
     product = await session.get(Product, product_id)
     if product is None:
         raise HTTPException(status_code=404, detail="product not found")
-    _delete_image_file(product, session)
+    await _delete_image_file(product)
     await session.commit()
     return Response(status_code=204)

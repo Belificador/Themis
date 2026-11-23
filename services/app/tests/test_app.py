@@ -1,0 +1,89 @@
+from __future__ import annotations
+
+import unittest
+import uuid
+from datetime import datetime, timezone
+
+from pydantic import ValidationError
+
+from app.alerts import _state_for
+from app.schemas import ProductBase, SaleCreate, SaleItemCreate
+from app.service import _sale_number
+
+
+class AlertStateTests(unittest.TestCase):
+    def test_depleted_at_zero(self) -> None:
+        self.assertEqual(_state_for(0, 0), "depleted")
+        self.assertEqual(_state_for(0, 5), "depleted")
+
+    def test_low_at_or_below_threshold(self) -> None:
+        self.assertEqual(_state_for(1, 1), "low")
+        self.assertEqual(_state_for(2, 5), "low")
+
+    def test_normal_above_threshold(self) -> None:
+        self.assertEqual(_state_for(3, 1), "normal")
+        self.assertEqual(_state_for(1, 0), "normal")
+
+
+class SaleNumberTests(unittest.TestCase):
+    def test_format(self) -> None:
+        sale_id = uuid.UUID("12345678-1234-5678-1234-567812345678")
+        created = datetime(2026, 11, 23, 12, 0, tzinfo=timezone.utc)
+        self.assertEqual(_sale_number(sale_id, created), "V-20261123-123456")
+
+
+class SaleSchemaTests(unittest.TestCase):
+    def test_vendedor_is_stripped(self) -> None:
+        payload = SaleCreate(
+            items=[SaleItemCreate(product_id=uuid.uuid4(), quantity=1)],
+            vendedor="  Ana Pérez  ",
+        )
+        self.assertEqual(payload.vendedor, "Ana Pérez")
+
+    def test_blank_vendedor_becomes_none(self) -> None:
+        payload = SaleCreate(
+            items=[SaleItemCreate(product_id=uuid.uuid4(), quantity=1)],
+            vendedor="   ",
+        )
+        self.assertIsNone(payload.vendedor)
+
+    def test_cashea_payment_is_valid(self) -> None:
+        payload = SaleCreate(
+            items=[SaleItemCreate(product_id=uuid.uuid4(), quantity=1)],
+            payment_method="cashea",
+        )
+        self.assertEqual(payload.payment_method, "cashea")
+
+    def test_unknown_payment_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            SaleCreate(
+                items=[SaleItemCreate(product_id=uuid.uuid4(), quantity=1)],
+                payment_method="bitcoin",
+            )
+
+
+class ProductSchemaTests(unittest.TestCase):
+    def test_prices_required(self) -> None:
+        with self.assertRaises(ValidationError):
+            ProductBase(
+                sku="SKU-1",
+                brand="Tecno",
+                model="Spark",
+                color="Negro",
+            )
+
+    def test_text_fields_are_stripped(self) -> None:
+        product = ProductBase(
+            sku="  SKU-1  ",
+            brand=" Tecno ",
+            model=" Spark ",
+            color=" Negro ",
+            price_eur=100,
+            price_usd=110,
+        )
+        self.assertEqual(product.sku, "SKU-1")
+        self.assertEqual(product.brand, "Tecno")
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -7,14 +7,14 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, Up
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .config import settings
-from .db import get_session
-from .invoices import attach_invoice, clear_invoice_metadata, invoice_storage_path, _supabase_delete, _supabase_signed_url, _use_supabase
-from .models import Sale
-from .schemas import Currency, SaleCreate, SaleRead
-from .service import create_sale, get_sale, list_sales, sales_summary
+from ..config import settings
+from ..db import get_session
+from ..invoices import attach_invoice, clear_invoice_metadata, invoice_storage_path, _supabase_delete, _supabase_signed_url, _use_supabase
+from ..models import Sale
+from ..schemas import Currency, SaleCreate, SaleRead
+from ..service import create_sale, get_sale, list_sales, sales_summary
 
-router = APIRouter(prefix="/sales", tags=["sales"])
+router = APIRouter(prefix="/api/sales", tags=["sales"])
 
 
 @router.post("", response_model=SaleRead, status_code=201)
@@ -46,6 +46,11 @@ async def get_invoice_url(sale_id: uuid.UUID, session: AsyncSession = Depends(ge
     storage_path = invoice_storage_path(sale)
     if not storage_path:
         raise HTTPException(status_code=404, detail="invoice not found")
+    if not _use_supabase():
+        raise HTTPException(
+            status_code=503,
+            detail="invoice storage not configured (Supabase required)",
+        )
     signed = await _supabase_signed_url(storage_path)
     return {"url": signed}
 

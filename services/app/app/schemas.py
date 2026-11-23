@@ -189,6 +189,59 @@ class PeriodStats(BaseModel):
     average_ticket: float
 
 
+class NotificationLogRead(BaseModel):
+    id: uuid.UUID
+    event_id: str
+    event_type: str
+    product_id: uuid.UUID
+    product_name: str
+    channel: str
+    destination: Optional[str]
+    status: str
+    attempts: int
+    detail: Optional[str]
+    error: Optional[str]
+    correlation_id: Optional[str]
+    created_at: datetime
+    sent_at: Optional[datetime]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NotificationChannelStat(BaseModel):
+    channel: str
+    status: str
+    count: int
+
+
+class NotificationStats(BaseModel):
+    service: str
+    dedupe_window_seconds: int
+    processed_events: int
+    by_channel_status: list[NotificationChannelStat]
+
+
+class TestAlertRequest(BaseModel):
+    sku: str = "TEST-SKU"
+    product_name: str = "Producto de prueba"
+    current_stock: int = 0
+    threshold: int = 0
+    channel: str = "all"
+
+
+class TestResultItem(BaseModel):
+    channel: str
+    status: str
+    attempts: Optional[int] = None
+    detail: Optional[str] = None
+    error: Optional[str] = None
+
+
+class TestResult(BaseModel):
+    event_id: str
+    results: list[TestResultItem]
+
+
 class SalesSummary(BaseModel):
     currency: Currency
     all_time: PeriodStats

@@ -1,110 +1,28 @@
 name: themis
 
 services:
-  catalog-service:
+  app:
     build:
       context: .
-      dockerfile: services/catalog/Dockerfile
+      dockerfile: services/app/Dockerfile
     environment:
-      SERVICE_NAME: catalog-service
-      DATABASE_URL: "${CATALOG_DATABASE_URL:-postgresql+asyncpg://catalog:catalog@localhost:5433/catalog}"
+      SERVICE_NAME: themis-app
+      DATABASE_URL: "${DATABASE_URL:-sqlite+aiosqlite:////data/themis.db}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
-      MEDIA_DIR: "${CATALOG_MEDIA_DIR:-/data/media}"
+      MEDIA_DIR: "${MEDIA_DIR:-/data/media}"
       IMAGE_MAX_BYTES: "${IMAGE_MAX_BYTES:-5242880}"
-      SUPABASE_URL: "${SUPABASE_URL:-}"
-      SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY:-}"
-      SUPABASE_BUCKET_PRODUCT_IMAGES: "${SUPABASE_BUCKET_PRODUCT_IMAGES:-product-images}"
-      SUPABASE_DB_PASSWORD: "${SUPABASE_DB_PASSWORD:-}"
-      DB_SCHEMA: "${DB_SCHEMA_CATALOG:-catalog}"
-    healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 25s
-    restart: unless-stopped
-    networks: [themis]
-
-  inventory-service:
-    build:
-      context: .
-      dockerfile: services/inventory/Dockerfile
-    environment:
-      SERVICE_NAME: inventory-service
-      DATABASE_URL: "${INVENTORY_DATABASE_URL:-postgresql+asyncpg://inventory:inventory@localhost:5434/inventory}"
-      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
-      SUPABASE_DB_PASSWORD: "${SUPABASE_DB_PASSWORD:-}"
-      DB_SCHEMA: "${DB_SCHEMA_INVENTORY:-inventory}"
-    healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 25s
-    restart: unless-stopped
-    networks: [themis]
-
-  notification-service:
-    build:
-      context: .
-      dockerfile: services/notification/Dockerfile
-    environment:
-      SERVICE_NAME: notification-service
-      DATABASE_URL: "${NOTIFICATION_DATABASE_URL:-postgresql+asyncpg://notification:notification@localhost:5435/notification}"
-      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
-      TELEGRAM_ENABLED: "${TELEGRAM_ENABLED:-true}"
-      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
-      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-}"
-      WHATSAPP_ENABLED: "${WHATSAPP_ENABLED:-true}"
-      WHATSAPP_TOKEN: "${WHATSAPP_TOKEN:-}"
-      WHATSAPP_PHONE_NUMBER_ID: "${WHATSAPP_PHONE_NUMBER_ID:-}"
-      WHATSAPP_RECIPIENT: "${WHATSAPP_RECIPIENT:-}"
-      WHATSAPP_API_VERSION: "${WHATSAPP_API_VERSION:-v20.0}"
-      SUPABASE_DB_PASSWORD: "${SUPABASE_DB_PASSWORD:-}"
-      DB_SCHEMA: "${DB_SCHEMA_NOTIFICATION:-notification}"
-    healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 25s
-    restart: unless-stopped
-    networks: [themis]
-
-  sales-service:
-    build:
-      context: .
-      dockerfile: services/sales/Dockerfile
-    environment:
-      SERVICE_NAME: sales-service
-      DATABASE_URL: "${SALES_DATABASE_URL:-postgresql+asyncpg://sales:sales@localhost:5436/sales}"
-      CATALOG_URL: "${CATALOG_URL:-http://catalog-service:8000}"
-      INVENTORY_URL: "${INVENTORY_URL:-http://inventory-service:8000}"
-      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
-      MEDIA_DIR: "${SALES_MEDIA_DIR:-/data/media}"
       INVOICE_MAX_BYTES: "${INVOICE_MAX_BYTES:-10485760}"
       SUPABASE_URL: "${SUPABASE_URL:-}"
+      SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY:-}"
       SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY:-}"
+      SUPABASE_BUCKET_PRODUCT_IMAGES: "${SUPABASE_BUCKET_PRODUCT_IMAGES:-product-images}"
       SUPABASE_BUCKET_INVOICES: "${SUPABASE_BUCKET_INVOICES:-sales-invoices}"
       SUPABASE_DB_PASSWORD: "${SUPABASE_DB_PASSWORD:-}"
-      DB_SCHEMA: "${DB_SCHEMA_SALES:-sales}"
-    depends_on:
-      catalog-service:
-        condition: service_healthy
-      inventory-service:
-        condition: service_healthy
+      DB_SCHEMA: "${DB_SCHEMA:-themis}"
+    volumes:
+      - themis-data:/data
+    ports:
+      - "${PORT:-8000}:8000"
     healthcheck:
       test:
         - CMD
@@ -114,50 +32,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 20s
+      start_period: 25s
     restart: unless-stopped
-    networks: [themis]
-
-  gateway:
-    build:
-      context: .
-      dockerfile: gateway/Dockerfile
-    environment:
-      SERVICE_NAME: api-gateway
-      CATALOG_URL: "${CATALOG_URL:-http://catalog-service:8000}"
-      INVENTORY_URL: "${INVENTORY_URL:-http://inventory-service:8000}"
-      NOTIFICATION_URL: "${NOTIFICATION_URL:-http://notification-service:8000}"
-      SALES_URL: "${SALES_URL:-http://sales-service:8000}"
-      STATIC_DIR: /app/static
-      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
-    ports:
-      - "${GATEWAY_PORT:-8080}:8080"
-    depends_on:
-      catalog-service:
-        condition: service_healthy
-      inventory-service:
-        condition: service_healthy
-      notification-service:
-        condition: service_healthy
-      sales-service:
-        condition: service_healthy
-    healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)"
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
-    restart: unless-stopped
-    networks: [themis]
 
 volumes:
-  catalog_media:
-  sales_media:
-
-networks:
-  themis:
-    driver: bridge
+  themis-data:

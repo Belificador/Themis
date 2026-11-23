@@ -34,12 +34,15 @@ def create_engine(
 
     engine = create_async_engine(database_url, pool_pre_ping=True, future=True)
 
-    if schema:
+    if schema and engine.dialect.name != "sqlite":
 
         @event.listens_for(engine.sync_engine, "connect")
         def _set_search_path(dbapi_connection, connection_record):
-            with dbapi_connection.cursor() as cursor:
+            cursor = dbapi_connection.cursor()
+            try:
                 cursor.execute(f'SET search_path TO "{schema}"')
+            finally:
+                cursor.close()
 
     return engine
 
@@ -56,10 +59,11 @@ async def init_models(
     delay_seconds: float = 2.0,
 ) -> None:
     """Create tables, retrying while the database becomes ready."""
+    use_schema = schema and engine.dialect.name != "sqlite"
     for attempt in range(1, attempts + 1):
         try:
             async with engine.begin() as connection:
-                if schema:
+                if use_schema:
                     await connection.execute(
                         f'CREATE SCHEMA IF NOT EXISTS "{schema}"'
                     )

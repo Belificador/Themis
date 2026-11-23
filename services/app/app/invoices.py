@@ -51,7 +51,7 @@ def _valid_invoice(data: bytes, content_type: str) -> bool:
 
 async def _supabase_upload(storage_path: str, data: bytes, content_type: str) -> None:
     if supabase_client:
-        await supabase_client.upload_public(
+        await supabase_client.upload(
             bucket=settings.supabase_bucket_invoices,
             path=storage_path,
             data=data,
@@ -75,6 +75,11 @@ async def _supabase_signed_url(storage_path: str, expires_in: int = 900) -> str:
 
 
 async def attach_invoice(sale: Sale, upload: UploadFile) -> None:
+    if not _use_supabase():
+        raise HTTPException(
+            status_code=503,
+            detail="invoice storage not configured (Supabase required)",
+        )
     content_type = (upload.content_type or "").lower()
     extension = INVOICE_TYPES.get(content_type)
     if extension is None:

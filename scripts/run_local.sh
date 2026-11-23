@@ -24,9 +24,18 @@ if [ "${1:-}" = "--fresh" ]; then
 fi
 
 # Si se configura SUPABASE_DB_PASSWORD, usa Supabase PostgreSQL; si no, SQLite local.
+# Fuerza SQLite con USE_LOCAL_DB=1 (útil sin red o para pruebas offline).
 SUPABASE_DB_URL=""
-if [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
+if [ -n "${SUPABASE_DB_PASSWORD:-}" ] && [ "${USE_LOCAL_DB:-0}" != "1" ]; then
   SUPABASE_DB_URL="postgresql+asyncpg://postgres:${SUPABASE_DB_PASSWORD}@db.yeaylufnjeyiutyxqict.supabase.co:5432/postgres"
+fi
+
+# En modo local/offline, desactiva también Supabase (DB y Storage).
+if [ "${USE_LOCAL_DB:-0}" = "1" ]; then
+  SUPABASE_DB_PASSWORD=""
+  SUPABASE_URL=""
+  SUPABASE_ANON_KEY=""
+  SUPABASE_SERVICE_ROLE_KEY=""
 fi
 
 PYTHON="${PYTHON:-$VENV/bin/python}"

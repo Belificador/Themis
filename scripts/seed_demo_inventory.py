@@ -304,7 +304,7 @@ def main() -> int:
 
         stock = wait_for_stock(product_id)
         if stock is None:
-            errors.append(f"{sku}: inventory-service no sincronizó el stock")
+            errors.append(f"{sku}: el stock no se creó a tiempo")
             continue
 
         try:

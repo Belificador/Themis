@@ -14,8 +14,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from .alerts import record_stock_alert
 from .config import settings
-from .models import Product, Sale, SaleItem, StockItem
+from .models import Product, Sale, SaleItem, StockItem, StockMovement
 from .schemas import SaleCreate
 
 logger = logging.getLogger(__name__)
@@ -71,17 +72,24 @@ async def _send_stock_exit(session: AsyncSession, sale: Sale) -> None:
             )
         stock_item.quantity -= item.quantity
         stock_item.updated_at = datetime.now(timezone.utc)
+        quantity_before = stock_item.quantity + item.quantity
 
         session.add(
             StockMovement(
                 product_id=item.product_id,
                 movement_type="exit",
                 delta=-item.quantity,
-                quantity_before=stock_item.quantity + item.quantity,
+                quantity_before=quantity_before,
                 quantity_after=stock_item.quantity,
                 note=f"Venta {sale.sale_number}",
                 reference_id=str(sale.id),
             )
+        )
+        record_stock_alert(
+            session,
+            stock_item,
+            quantity_before=quantity_before,
+            quantity_after=stock_item.quantity,
         )
 
 

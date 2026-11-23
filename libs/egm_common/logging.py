@@ -60,8 +60,6 @@ def configure_logging(service_name: str, level: str = "INFO") -> None:
     root.handlers = [handler]
     root.setLevel(level.upper())
 
-    logging.getLogger("aio_pika").setLevel(logging.WARNING)
-    logging.getLogger("aiormq").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
