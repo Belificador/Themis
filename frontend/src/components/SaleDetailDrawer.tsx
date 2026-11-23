@@ -165,6 +165,12 @@ export function SaleDetailDrawer({
                 <dd>{current.customer_name}</dd>
               </div>
             )}
+            {current.vendedor && (
+              <div>
+                <dt>Vendedor</dt>
+                <dd>{current.vendedor}</dd>
+              </div>
+            )}
             {current.note && (
               <div>
                 <dt>Nota</dt>

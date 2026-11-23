@@ -3,16 +3,15 @@
 
 The catalog is populated dynamically (no hardcoded catalog logic in services):
 this script only replays the stock list provided by the store. It creates each
-product, waits for inventory-service to consume the event, then sets the stock
-with an adjustment. Products at zero trigger a stock.depleted event on purpose.
+product, then sets the stock with an adjustment. Products at zero trigger a
+stock.depleted event on purpose.
 
 Usage:
-    BASE_URL=http://127.0.0.1:8080 python3 scripts/seed_demo_inventory.py
+    BASE_URL=http://127.0.0.1:8000 python3 scripts/seed_demo_inventory.py
 """
 
 from __future__ import annotations
 
-import json
 import json
 import os
 import sys
@@ -23,10 +22,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any, Optional
-import uuid
-from pathlib import Path
 
-BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8080").rstrip("/")
+BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 COLOR = "Estándar"
 
 ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets" / "product-images"

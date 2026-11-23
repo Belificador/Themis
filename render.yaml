@@ -1,11 +1,11 @@
 services:
   - type: web
-    name: catalog-service
+    name: themis-app
     env: python
     plan: starter
     region: oregon
-    buildCommand: "pip install -r services/catalog/requirements.txt"
-    startCommand: "cd services/catalog && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    buildCommand: "pip install -r services/app/requirements.txt"
+    startCommand: "cd services/app && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -15,118 +15,19 @@ services:
         value: /data/media
       - key: IMAGE_MAX_BYTES
         value: "5242880"
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SUPABASE_BUCKET_PRODUCT_IMAGES
-        value: product-images
-      - key: SUPABASE_DB_PASSWORD
-        sync: false
-      - key: DB_SCHEMA
-        value: catalog
-
-  - type: web
-    name: inventory-service
-    env: python
-    plan: starter
-    region: oregon
-    buildCommand: "pip install -r services/inventory/requirements.txt"
-    startCommand: "cd services/inventory && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: LOG_LEVEL
-        value: INFO
-      - key: SUPABASE_DB_PASSWORD
-        sync: false
-      - key: DB_SCHEMA
-        value: inventory
-
-  - type: web
-    name: notification-service
-    env: python
-    plan: starter
-    region: oregon
-    buildCommand: "pip install -r services/notification/requirements.txt"
-    startCommand: "cd services/notification && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: LOG_LEVEL
-        value: INFO
-      - key: TELEGRAM_ENABLED
-        value: "true"
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: TELEGRAM_CHAT_ID
-        sync: false
-      - key: WHATSAPP_ENABLED
-        value: "true"
-      - key: WHATSAPP_TOKEN
-        sync: false
-      - key: WHATSAPP_PHONE_NUMBER_ID
-        sync: false
-      - key: WHATSAPP_RECIPIENT
-        sync: false
-      - key: WHATSAPP_API_VERSION
-        value: v20.0
-      - key: SUPABASE_DB_PASSWORD
-        sync: false
-      - key: DB_SCHEMA
-        value: notification
-
-  - type: web
-    name: sales-service
-    env: python
-    plan: starter
-    region: oregon
-    buildCommand: "pip install -r services/sales/requirements.txt"
-    startCommand: "cd services/sales && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: CATALOG_URL
-        sync: false
-      - key: INVENTORY_URL
-        sync: false
-      - key: LOG_LEVEL
-        value: INFO
-      - key: MEDIA_DIR
-        value: /data/media
       - key: INVOICE_MAX_BYTES
         value: "10485760"
       - key: SUPABASE_URL
         sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: SUPABASE_BUCKET_PRODUCT_IMAGES
+        value: product-images
       - key: SUPABASE_BUCKET_INVOICES
         value: sales-invoices
       - key: SUPABASE_DB_PASSWORD
         sync: false
       - key: DB_SCHEMA
-        value: sales
-
-  - type: web
-    name: api-gateway
-    env: python
-    plan: starter
-    region: oregon
-    buildCommand: |
-      pip install -r gateway/requirements.txt
-      cd frontend && npm ci && npm run build
-    startCommand: "cd gateway && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
-    envVars:
-      - key: CATALOG_URL
-        sync: false
-      - key: INVENTORY_URL
-        sync: false
-      - key: NOTIFICATION_URL
-        sync: false
-      - key: SALES_URL
-        sync: false
-      - key: STATIC_DIR
-        value: /app/static
-      - key: LOG_LEVEL
-        value: INFO
-    autoDeploy: false
+        value: themis

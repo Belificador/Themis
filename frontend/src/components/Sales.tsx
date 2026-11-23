@@ -195,6 +195,7 @@ export function Sales({
                   <th>Venta</th>
                   <th>Fecha</th>
                   <th>Cliente</th>
+                  <th>Vendedor</th>
                   <th>Artículos</th>
                   <th>Pago</th>
                   <th>Moneda</th>
@@ -221,6 +222,9 @@ export function Sales({
                     </td>
                     <td className="small">
                       {sale.customer_name ?? '—'}
+                    </td>
+                    <td className="small">
+                      {sale.vendedor ?? '—'}
                     </td>
                     <td>
                       <div className="product-cell">

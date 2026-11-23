@@ -74,6 +74,7 @@ export function SaleDrawer({
   const [payment, setPayment] = useState<PaymentMethod>('cash')
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [customer, setCustomer] = useState('')
+  const [vendedor, setVendedor] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -270,6 +271,7 @@ export function SaleDrawer({
         payment_method: payment,
         currency,
         customer_name: customer.trim() || null,
+        vendedor: vendedor.trim() || null,
         note: note.trim() || null,
         idempotency_key: key,
       })
@@ -290,6 +292,7 @@ export function SaleDrawer({
     setPayment('cash')
     setCurrency(defaultCurrency)
     setCustomer('')
+    setVendedor('')
     setNote('')
     setError(null)
     setInvoiceFile(null)
@@ -675,6 +678,15 @@ export function SaleDrawer({
                       value={customer}
                       onChange={(event) => setCustomer(event.target.value)}
                       placeholder="Nombre o teléfono"
+                      maxLength={120}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Vendedor (opcional)</span>
+                    <input
+                      value={vendedor}
+                      onChange={(event) => setVendedor(event.target.value)}
+                      placeholder="Nombre del vendedor"
                       maxLength={120}
                     />
                   </label>

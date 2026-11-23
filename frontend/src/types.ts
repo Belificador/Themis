@@ -131,6 +131,7 @@ export interface Sale {
   sale_number: string
   status: string
   customer_name: string | null
+  vendedor: string | null
   payment_method: PaymentMethod
   note: string | null
   currency: string
@@ -156,6 +157,7 @@ export interface SaleInput {
   payment_method: PaymentMethod
   currency: Currency
   customer_name?: string | null
+  vendedor?: string | null
   note?: string | null
   idempotency_key?: string
 }
