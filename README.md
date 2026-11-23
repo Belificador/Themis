@@ -240,6 +240,23 @@ Render no incluye Web Services; el más barato es Starter (~7 USD/mes).
 
 La base de datos se crea automáticamente en el esquema `themis` al arrancar.
 
+### Frontend en Vercel (backend separado)
+
+Si prefieres servir el frontend en Vercel y el backend en Render como servicios
+independientes:
+
+1. Render: define `CORS_ORIGINS` con el dominio de Vercel
+   (`https://tu-app.vercel.app`) y, opcionalmente,
+   `CORS_ORIGIN_REGEX=https://.*\.vercel\.app` para previews.
+2. Vercel: importa la carpeta `frontend/` y define
+   `VITE_API_BASE_URL=https://tu-servicio.onrender.com`.
+3. En Vercel, variables de entorno: `VITE_API_BASE_URL`. No es necesario definir
+   ninguna otra; el backend expone toda la API en `/api/*`.
+
+Luego todas las llamadas del frontend van directamente al backend de Render
+(y las firmas de factura apuntan a Supabase), sin pasar por Vercel, lo que
+evita límites de tamaño de subida de facturas.
+
 ## Decisiones y límites conocidos
 
 - **Un único servicio y una única base de datos.** Sin RabbitMQ ni outbox; las

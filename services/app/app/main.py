@@ -8,6 +8,7 @@ from pathlib import Path
 from egm_common.db import init_models
 from egm_common.logging import CorrelationIdMiddleware, configure_logging
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
@@ -54,6 +55,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Themis App", version="1.0.0", lifespan=lifespan)
 app.add_middleware(CorrelationIdMiddleware)
+
+if settings.cors_origins or settings.cors_origin_regex:
+    origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins if origins else ["*"],
+        allow_origin_regex=settings.cors_origin_regex or None,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Correlation-ID"],
+    )
 app.include_router(products.router)
 app.include_router(sales.router)
 app.include_router(stock.router)

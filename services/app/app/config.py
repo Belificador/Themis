@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     db_schema: str = "themis"
     log_level: str = "INFO"
     dedupe_window_seconds: int = 0
+    # Orígenes permitidos (coma-separados) para el frontend desplegado aparte.
+    cors_origins: str = ""
+    # Regex opcional, p. ej. https://.*\.vercel\.app para previews.
+    cors_origin_regex: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

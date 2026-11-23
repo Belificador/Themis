@@ -11,13 +11,14 @@ import type {
   SalesSummary,
   TestResult,
 } from './types'
+import { apiUrl } from './config'
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers)
   if (options.body && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
   }
-  const response = await fetch(url, { ...options, headers })
+  const response = await fetch(apiUrl(url), { ...options, headers })
   if (!response.ok) {
     let detail = `${response.status} ${response.statusText}`
     try {
