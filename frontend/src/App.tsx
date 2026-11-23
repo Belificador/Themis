@@ -6,6 +6,7 @@ import { Overview } from './components/Overview'
 import { ProductDrawer } from './components/ProductDrawer'
 import { SaleDrawer } from './components/SaleDrawer'
 import { Sales } from './components/Sales'
+import { InstallButton } from './components/InstallButton'
 import { Icon, type IconName } from './icons'
 import type { Currency, DashboardRow, Product } from './types'
 
@@ -187,6 +188,7 @@ export default function App() {
               <Icon name="receipt" />
               <span className="btn-label">Nueva venta</span>
             </button>
+            <InstallButton />
           </div>
         </header>
 
