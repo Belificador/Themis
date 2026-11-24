@@ -200,7 +200,11 @@ async def get_product_image(product_id: uuid.UUID, session: AsyncSession = Depen
         raise HTTPException(status_code=404, detail="product not found")
 
     if _use_supabase() and product.image_stored_name:
-        return RedirectResponse(url=_supabase_public_url(product.image_stored_name), status_code=302, headers={"Cache-Control": "public, max-age=86400"})
+        signed_url = await supabase_client.create_signed_url(
+            bucket=settings.supabase_bucket_product_images,
+            path=product.image_stored_name,
+        )
+        return RedirectResponse(url=signed_url, status_code=302, headers={"Cache-Control": "public, max-age=86400"})
 
     path = Path(settings.media_dir) / "products" / str(product.id) / product.image_stored_name if product.image_stored_name else None
     if path is None or not path.is_file():
