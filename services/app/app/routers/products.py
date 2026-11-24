@@ -27,7 +27,11 @@ IMAGE_TYPES = {
 supabase_client = None
 if settings.supabase_url and settings.supabase_anon_key:
     from egm_common.supabase_client import SupabaseClient
-    supabase_client = SupabaseClient(base_url=settings.supabase_url, anon_key=settings.supabase_anon_key)
+    supabase_client = SupabaseClient(
+        base_url=settings.supabase_url,
+        anon_key=settings.supabase_anon_key,
+        service_role_key=settings.supabase_service_role_key,
+    )
 
 
 def _valid_image(data: bytes, content_type: str) -> bool:
@@ -54,7 +58,7 @@ def _supabase_public_url(storage_path: str) -> str:
 
 async def _supabase_upload(storage_path: str, data: bytes, content_type: str) -> None:
     if supabase_client:
-        await supabase_client.upload_public(
+        await supabase_client.upload(
             bucket=settings.supabase_bucket_product_images,
             path=storage_path,
             data=data,
