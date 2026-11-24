@@ -31,19 +31,16 @@ def create_engine(
             database_url, supabase_ref, supabase_password, schema
         )
 
-    engine = create_async_engine(database_url, pool_pre_ping=True, future=True)
+    is_postgres = "postgresql" in database_url
+    connect_args = (
+        {"server_settings": {"search_path": schema}}
+        if schema and is_postgres
+        else {}
+    )
 
-    if schema and engine.dialect.name != "sqlite":
-
-        @event.listens_for(engine.sync_engine, "connect")
-        def _set_search_path(dbapi_connection, connection_record):
-            cursor = dbapi_connection.cursor()
-            try:
-                cursor.execute(f'SET search_path TO "{schema}"')
-            finally:
-                cursor.close()
-
-    return engine
+    engine = create_async_engine(
+        database_url, pool_pre_ping=True, future=True, connect_args=connect_args
+    )
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
