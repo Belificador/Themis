@@ -7,6 +7,7 @@ import { ProductDrawer } from './components/ProductDrawer'
 import { SaleDrawer } from './components/SaleDrawer'
 import { Sales } from './components/Sales'
 import { InstallButton } from './components/InstallButton'
+import { Login } from './components/Login'
 import { Icon, type IconName } from './icons'
 import type { DashboardRow, Product } from './types'
 
@@ -54,6 +55,9 @@ function newIdempotencyKey(): string {
 export default function App() {
   const [tab, setTab] = useState<Tab>('overview')
   const [theme, setTheme] = useState<Theme>(initialTheme)
+  const [isAuthenticated, setIsAuthenticated] = useState(() =>
+    !!localStorage.getItem('themis-token')
+  )
   const [refreshKey, setRefreshKey] = useState(0)
   const [saleOpen, setSaleOpen] = useState(false)
   const [saleInitial, setSaleInitial] = useState<DashboardRow | null>(null)
@@ -82,6 +86,17 @@ export default function App() {
     toastTimer.current = window.setTimeout(() => setToast(null), 3200)
   }
 
+  const handleLogin = () => {
+    setIsAuthenticated(true)
+    bump()
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('themis-token')
+    setIsAuthenticated(false)
+    window.location.reload()
+  }
+
   const openSale = (row: DashboardRow | null = null) => {
     setSaleInitial(row)
     setSaleSession((value) => value + 1)
@@ -95,7 +110,7 @@ export default function App() {
 
   const page = TITLES[tab]
 
-  return (
+  const appShell = (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-lockup">
@@ -167,6 +182,14 @@ export default function App() {
             <button className="btn btn-primary" onClick={() => openSale()}>
               <Icon name="receipt" />
               <span className="btn-label">Nueva venta</span>
+            </button>
+            <button
+              className="btn btn-ghost"
+              onClick={handleLogout}
+              title="Cerrar sesión"
+            >
+              <Icon name="logout" size={16} />
+              <span className="btn-label">Salir</span>
             </button>
             <InstallButton />
           </div>
@@ -249,4 +272,6 @@ export default function App() {
       )}
     </div>
   )
+
+  return isAuthenticated ? appShell : <Login onLogin={handleLogin} />
 }

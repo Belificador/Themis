@@ -189,3 +189,13 @@ export interface SalesSummary {
   }[]
   daily: { date: string; sales: number; revenue: number }[]
 }
+
+export interface Token {
+  access_token: string
+  token_type: string
+}
+
+export interface UserLogin {
+  username: string
+  password: string
+}
