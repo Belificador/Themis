@@ -201,12 +201,15 @@ async def get_product_image(product_id: uuid.UUID, session: AsyncSession = Depen
         raise HTTPException(status_code=404, detail="product not found")
 
     if _use_supabase() and product.image_stored_name:
-        signed_url = await supabase_client.create_signed_url(
-            bucket=settings.supabase_bucket_product_images,
-            path=product.image_stored_name,
+        download_url = (
+            f"{settings.supabase_url.rstrip('/')}/storage/v1/object/"
+            f"{settings.supabase_bucket_product_images}/{product.image_stored_name}"
         )
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(signed_url)
+            resp = await client.get(
+                download_url,
+                headers={"Authorization": f"Bearer {settings.supabase_service_role_key}"},
+            )
             if resp.status_code == 200:
                 return Response(
                     content=resp.content,
