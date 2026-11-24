@@ -10,3 +10,4 @@ httpx==0.28.1
 passlib[bcrypt]
 pyjwt
 python-jose[cryptography]
+openpyxl

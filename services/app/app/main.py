@@ -15,7 +15,7 @@ from sqlalchemy import text
 
 from .config import settings
 from .db import Base, SessionLocal, engine
-from .routers import auth, dashboard, notifications, products, rates, sales, stock
+from .routers import auth, dashboard, notifications, products, rates, reports, sales, stock
 from .service import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,7 @@ app.include_router(
     dashboard.router, dependencies=[Depends(get_current_user)]
 )
 app.include_router(rates.router, dependencies=[Depends(get_current_user)])
+app.include_router(reports.router, dependencies=[Depends(get_current_user)])
 
 
 @app.get("/health", tags=["health"])
