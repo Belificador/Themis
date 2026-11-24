@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import or_, select
@@ -204,7 +205,18 @@ async def get_product_image(product_id: uuid.UUID, session: AsyncSession = Depen
             bucket=settings.supabase_bucket_product_images,
             path=product.image_stored_name,
         )
-        return RedirectResponse(url=signed_url, status_code=302, headers={"Cache-Control": "public, max-age=86400"})
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(signed_url)
+            if resp.status_code == 200:
+                return Response(
+                    content=resp.content,
+                    media_type=product.image_content_type or "application/octet-stream",
+                    headers={"Cache-Control": "public, max-age=86400"},
+                )
+            raise HTTPException(
+                status_code=resp.status_code,
+                detail="Error al obtener imagen de Supabase",
+            )
 
     path = Path(settings.media_dir) / "products" / str(product.id) / product.image_stored_name if product.image_stored_name else None
     if path is None or not path.is_file():
