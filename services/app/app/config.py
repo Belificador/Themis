@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     db_schema: str = "themis"
     log_level: str = "INFO"
     dedupe_window_seconds: int = 0
+    # Tasas BCV (dolarapi.com, sin clave).
+    bcv_api_url: str = "https://ve.dolarapi.com/v1/dolares"
+    bcv_cache_seconds: int = 3600
     # Orígenes permitidos (coma-separados) para el frontend desplegado aparte.
     cors_origins: str = ""
     # Regex opcional, p. ej. https://.*\.vercel\.app para previews.

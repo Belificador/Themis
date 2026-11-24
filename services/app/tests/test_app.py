@@ -61,6 +61,19 @@ class SaleSchemaTests(unittest.TestCase):
                 payment_method="bitcoin",
             )
 
+    def test_default_currency_is_usd(self) -> None:
+        payload = SaleCreate(
+            items=[SaleItemCreate(product_id=uuid.uuid4(), quantity=1)],
+        )
+        self.assertEqual(payload.currency, "USD")
+
+    def test_eur_currency_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            SaleCreate(
+                items=[SaleItemCreate(product_id=uuid.uuid4(), quantity=1)],
+                currency="EUR",
+            )
+
 
 class ProductSchemaTests(unittest.TestCase):
     def test_prices_required(self) -> None:
@@ -78,7 +91,6 @@ class ProductSchemaTests(unittest.TestCase):
             brand=" Tecno ",
             model=" Spark ",
             color=" Negro ",
-            price_eur=100,
             price_usd=110,
         )
         self.assertEqual(product.sku, "SKU-1")

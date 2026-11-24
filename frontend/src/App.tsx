@@ -8,7 +8,7 @@ import { SaleDrawer } from './components/SaleDrawer'
 import { Sales } from './components/Sales'
 import { InstallButton } from './components/InstallButton'
 import { Icon, type IconName } from './icons'
-import type { Currency, DashboardRow, Product } from './types'
+import type { DashboardRow, Product } from './types'
 
 type Tab = 'overview' | 'inventory' | 'sales' | 'notifications'
 type Theme = 'light' | 'dark'
@@ -44,10 +44,6 @@ function initialTheme(): Theme {
   return stored === 'dark' ? 'dark' : 'light'
 }
 
-function initialCurrency(): Currency {
-  return localStorage.getItem('themis-currency') === 'USD' ? 'USD' : 'EUR'
-}
-
 function newIdempotencyKey(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID()
@@ -58,7 +54,6 @@ function newIdempotencyKey(): string {
 export default function App() {
   const [tab, setTab] = useState<Tab>('overview')
   const [theme, setTheme] = useState<Theme>(initialTheme)
-  const [currency, setCurrency] = useState<Currency>(initialCurrency)
   const [refreshKey, setRefreshKey] = useState(0)
   const [saleOpen, setSaleOpen] = useState(false)
   const [saleInitial, setSaleInitial] = useState<DashboardRow | null>(null)
@@ -72,10 +67,6 @@ export default function App() {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('themis-theme', theme)
   }, [theme])
-
-  useEffect(() => {
-    localStorage.setItem('themis-currency', currency)
-  }, [currency])
 
   useEffect(() => {
     return () => {
@@ -152,17 +143,6 @@ export default function App() {
             <p>{page.subtitle}</p>
           </div>
           <div className="topbar-actions">
-            <div className="currency-switch" aria-label="Moneda">
-              {(['EUR', 'USD'] as Currency[]).map((code) => (
-                <button
-                  key={code}
-                  className={currency === code ? 'active' : ''}
-                  onClick={() => setCurrency(code)}
-                >
-                  {code}
-                </button>
-              ))}
-            </div>
             <button
               className="icon-btn theme-toggle"
               onClick={() =>
@@ -196,7 +176,6 @@ export default function App() {
           {tab === 'overview' && (
             <Overview
               refreshKey={refreshKey}
-              currency={currency}
               onNavigate={setTab}
               onSell={(row) => openSale(row)}
               onNewSale={() => openSale()}
@@ -206,7 +185,6 @@ export default function App() {
           {tab === 'inventory' && (
             <Inventory
               refreshKey={refreshKey}
-              currency={currency}
               onChanged={bump}
               onSell={(row) => openSale(row)}
               onEdit={(product) => openProduct(product)}
@@ -217,7 +195,6 @@ export default function App() {
           {tab === 'sales' && (
             <Sales
               refreshKey={refreshKey}
-              currency={currency}
               onChanged={bump}
               onNewSale={() => openSale()}
             />
@@ -243,7 +220,6 @@ export default function App() {
         <SaleDrawer
           key={saleSession}
           initialRow={saleInitial}
-          defaultCurrency={currency}
           idempotencyKey={newIdempotencyKey()}
           onClose={() => setSaleOpen(false)}
           onDone={() => {

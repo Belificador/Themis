@@ -3,7 +3,6 @@ import { api } from '../api'
 import { categoryLabel, dateTime, money, paymentLabel, shortDate } from '../format'
 import { Icon } from '../icons'
 import type {
-  Currency,
   DashboardResponse,
   DashboardRow,
   Sale,
@@ -15,14 +14,12 @@ type Tab = 'overview' | 'inventory' | 'sales' | 'notifications'
 
 export function Overview({
   refreshKey,
-  currency,
   onNavigate,
   onSell,
   onNewSale,
   onNewProduct,
 }: {
   refreshKey: number
-  currency: Currency
   onNavigate: (tab: Tab) => void
   onSell: (row: DashboardRow) => void
   onNewSale: () => void
@@ -37,7 +34,7 @@ export function Overview({
   useEffect(() => {
     let active = true
     setLoading(true)
-    Promise.all([api.dashboard(), api.salesSummary(currency), api.sales(5)])
+    Promise.all([api.dashboard(), api.salesSummary(), api.sales(5)])
       .then(([dashboard, salesSummary, sales]) => {
         if (!active) return
         setData(dashboard)
@@ -54,26 +51,17 @@ export function Overview({
     return () => {
       active = false
     }
-  }, [refreshKey, currency])
+  }, [refreshKey])
 
-  const totals =
-    data?.totals.find((entry) => entry.currency === currency) ?? data?.totals[0]
-  const potentialMargin = (totals?.retail_value ?? 0) - (totals?.cost_value ?? 0)
+  const totals = data?.totals[0]
+  const lowCount = data?.low_stock_count ?? 0
   const outOfStock = (data?.products ?? []).filter(
     (row) => row.stock_synced && row.quantity === 0,
   ).length
-  const lowRows = (data?.products ?? [])
-    .filter((row) => row.low_stock)
-    .sort((a, b) => a.quantity - b.quantity)
-    .slice(0, 5)
   const maxDaily = Math.max(
     1,
     ...(summary?.daily ?? []).map((entry) => entry.revenue),
   )
-  const todayMarginPercent =
-    summary && summary.today.revenue > 0
-      ? Math.round((summary.today.margin / summary.today.revenue) * 100)
-      : 0
 
   if (loading && !data) {
     return <div className="loading-state">Cargando resumen…</div>
@@ -88,39 +76,52 @@ export function Overview({
         </div>
       )}
 
+      {data?.bcv_rates && (
+        <div className="rates-bar">
+          <span className="rates-label">Tasa BCV</span>
+          <span className="rates-value">
+            {data.bcv_rates.oficial ? `${data.bcv_rates.oficial.toLocaleString(
+              'es-ES',
+              { minimumFractionDigits: 2 },
+            )} Bs` : '—'}
+          </span>
+          <span className="rates-divider">/</span>
+          <span className="rates-value">
+            {data.bcv_rates.paralelo ? `${data.bcv_rates.paralelo.toLocaleString(
+              'es-ES',
+              { minimumFractionDigits: 2 },
+            )} Bs` : '—'}
+          </span>
+          <span className="rates-divider">/</span>
+          <span className="rates-factor">
+            factor {data.bcv_factor?.toFixed(2) ?? '—'}
+          </span>
+        </div>
+      )}
+
       <section className="kpi-grid">
         <KpiCard
           label="Valor de venta"
-          value={money(totals?.retail_value ?? 0, currency)}
+          value={money(totals?.retail_value ?? 0)}
           detail={`${data?.total_units ?? 0} unidades en stock`}
           tone="accent"
         />
         <KpiCard
-          label="Valor al costo"
-          value={money(totals?.cost_value ?? 0, currency)}
-          detail={`Margen potencial ${money(potentialMargin, currency)}`}
+          label="Valor al precio BCV"
+          value={money(totals?.bcv_retail_value ?? 0)}
+          detail={`${totals?.phone_units ?? 0} teléfonos`}
         />
         <KpiCard
           label="En teléfonos"
-          value={money(totals?.phone_retail_value ?? 0, currency)}
-          detail={`${totals?.phone_units ?? 0} teléfonos · costo ${money(
-            totals?.phone_cost_value ?? 0,
-            currency,
-          )}`}
+          value={money(totals?.phone_retail_value ?? 0)}
+          detail={`${totals?.phone_units ?? 0} teléfonos`}
         />
         <KpiCard
           label="Ventas hoy"
-          value={money(summary?.today.revenue ?? 0, currency)}
+          value={money(summary?.today.revenue ?? 0)}
           detail={`${summary?.today.sales ?? 0} ventas · ticket ${money(
             summary?.today.average_ticket ?? 0,
-            currency,
           )}`}
-          tone="success"
-        />
-        <KpiCard
-          label="Margen hoy"
-          value={money(summary?.today.margin ?? 0, currency)}
-          detail={`${todayMarginPercent}% sobre ingresos`}
           tone="success"
         />
         <KpiCard
@@ -155,12 +156,12 @@ export function Overview({
                         (entry.revenue / maxDaily) * 100,
                       )}%`,
                     }}
-                    title={`${money(entry.revenue, currency)} · ${entry.sales} ventas`}
+                    title={`${money(entry.revenue)} · ${entry.sales} ventas`}
                   />
                 </div>
                 <span className="bar-label">{shortDate(entry.date)}</span>
                 <span className="bar-value">
-                  {entry.revenue > 0 ? money(entry.revenue, currency) : '—'}
+                  {entry.revenue > 0 ? money(entry.revenue) : '—'}
                 </span>
               </div>
             ))}
@@ -173,47 +174,38 @@ export function Overview({
               <h2>Necesita atención</h2>
               <p className="muted">Productos en o por debajo del umbral.</p>
             </div>
-            <span className={`badge ${lowRows.length ? 'badge-warn' : 'badge-ok'}`}>
+            <span className={`badge ${lowCount ? 'badge-warn' : 'badge-ok'}`}>
               {data?.low_stock_count ?? 0}
             </span>
           </div>
-          {lowRows.length === 0 ? (
-            <EmptyState
-              title="Todo en orden"
-              detail="Ningún producto ha cruzado su umbral de stock."
-            />
-          ) : (
-            <ul className="mini-list">
-              {lowRows.map((row) => (
-                <li key={row.id}>
-                  <div className="mini-list-main">
+          <div className="low-stock-list">
+            {(data?.products ?? [])
+              .filter((row) => row.low_stock)
+              .sort((a, b) => a.quantity - b.quantity)
+              .slice(0, 5)
+              .map((row) => (
+                <div key={row.id} className="low-row">
+                  <div>
                     <strong>{row.product_name}</strong>
-                    <span className="muted small">
-                      {row.sku} · {categoryLabel(row.category)}
-                    </span>
+                    <span className="muted small">{row.sku}</span>
                   </div>
-                  <div className="mini-list-side">
-                    <span
-                      className={`badge ${
-                        row.quantity === 0 ? 'badge-danger' : 'badge-warn'
-                      }`}
+                  <span className={`badge ${
+                    row.quantity === 0 ? 'badge-danger' : 'badge-warn'
+                  }`}>
+                    {row.quantity} uds
+                  </span>
+                  {row.quantity > 0 && (
+                    <button
+                      className="icon-btn small"
+                      onClick={() => onSell(row)}
+                      title="Vender"
                     >
-                      {row.quantity} uds
-                    </span>
-                    {row.quantity > 0 && (
-                      <button
-                        className="icon-btn small"
-                        onClick={() => onSell(row)}
-                        title="Vender"
-                      >
-                        <Icon name="receipt" size={15} />
-                      </button>
-                    )}
-                  </div>
-                </li>
+                      <Icon name="receipt" size={15} />
+                    </button>
+                  )}
+                </div>
               ))}
-            </ul>
-          )}
+          </div>
           <div className="panel-actions">
             <button
               className="btn btn-ghost btn-sm"
@@ -274,12 +266,8 @@ export function Overview({
                           : ''}
                       </td>
                       <td className="small">{paymentLabel(sale.payment_method)}</td>
-                      <td className="strong">
-                        {money(sale.total, sale.currency)}
-                      </td>
-                      <td className="small muted">
-                        {dateTime(sale.created_at)}
-                      </td>
+                      <td className="strong">{money(sale.total)}</td>
+                      <td className="small muted">{dateTime(sale.created_at)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -309,7 +297,7 @@ export function Overview({
                     <strong>{product.product_name}</strong>
                     <span className="muted small">
                       {product.units} unidades ·{' '}
-                      {money(product.revenue, currency)}
+                      {money(product.revenue)}
                     </span>
                   </div>
                   <CategoryBadge category={product.category} />

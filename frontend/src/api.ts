@@ -1,5 +1,5 @@
 import type {
-  Currency,
+  BcvRates,
   DashboardResponse,
   Movement,
   NotificationLog,
@@ -41,6 +41,7 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   dashboard: () => request<DashboardResponse>('/api/dashboard'),
+  bcvRates: () => request<BcvRates>('/api/rates/bcv'),
   createProduct: (payload: ProductInput) =>
     request<Product>('/api/catalog/products', {
       method: 'POST',
@@ -91,8 +92,7 @@ export const api = {
     }),
   sales: (limit = 100) => request<Sale[]>(`/api/sales?limit=${limit}`),
   sale: (saleId: string) => request<Sale>(`/api/sales/${saleId}`),
-  salesSummary: (currency: Currency = 'EUR') =>
-    request<SalesSummary>(`/api/sales/summary?currency=${currency}`),
+  salesSummary: () => request<SalesSummary>('/api/sales/summary'),
   createSale: (payload: SaleInput) =>
     request<Sale>('/api/sales', {
       method: 'POST',

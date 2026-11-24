@@ -1,6 +1,12 @@
 export type Category = 'phone' | 'tablet' | 'accessory'
-export type Currency = 'EUR' | 'USD'
+export type Currency = 'USD'
 export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'other' | 'cashea'
+
+export interface BcvRates {
+  oficial: number
+  paralelo: number
+  factor: number
+}
 
 export interface Product {
   id: string
@@ -8,13 +14,14 @@ export interface Product {
   brand: string
   model: string
   ram_gb: number
+  ram_virtual_gb: number
   storage_gb: number
   color: string
   category: Category
-  cost_price_eur: number
-  price_eur: number
-  cost_price_usd: number
   price_usd: number
+  price_bcv_usd: number
+  price_cashea_usd: number
+  camera: string | null
   threshold: number
   image_content_type: string | null
   image_size: number | null
@@ -29,13 +36,14 @@ export interface ProductInput {
   brand: string
   model: string
   ram_gb: number
+  ram_virtual_gb: number
   storage_gb: number
   color: string
   category: Category
-  cost_price_eur: number
-  price_eur: number
-  cost_price_usd: number
   price_usd: number
+  price_bcv_usd: number
+  price_cashea_usd: number
+  camera: string | null
   threshold: number
 }
 
@@ -45,22 +53,25 @@ export interface DashboardRow extends Product {
   alert_state: string
   active: boolean
   stock_synced: boolean
+  price_bcv_effective_usd: number
 }
 
 export interface DashboardTotals {
   currency: string
   units: number
   retail_value: number
-  cost_value: number
+  bcv_retail_value: number
   phone_units: number
   phone_retail_value: number
-  phone_cost_value: number
+  phone_bcv_retail_value: number
 }
 
 export interface DashboardResponse {
   count: number
   low_stock_count: number
   total_units: number
+  bcv_factor: number
+  bcv_rates: BcvRates
   totals: DashboardTotals[]
   products: DashboardRow[]
 }
@@ -120,10 +131,7 @@ export interface SaleItem {
   category: Category
   quantity: number
   unit_price: number
-  unit_cost: number
   line_total: number
-  line_cost: number
-  line_margin: number
 }
 
 export interface Sale {
@@ -136,8 +144,6 @@ export interface Sale {
   note: string | null
   currency: string
   total: number
-  cost_total: number
-  margin: number
   invoice_filename: string | null
   invoice_content_type: string | null
   invoice_size: number | null
@@ -166,8 +172,6 @@ export interface PeriodStats {
   sales: number
   units: number
   revenue: number
-  cost: number
-  margin: number
   average_ticket: number
 }
 

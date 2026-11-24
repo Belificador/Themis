@@ -1,4 +1,4 @@
-import type { Category, Currency, Product } from './types'
+import type { Category, Product } from './types'
 
 const CATEGORY_LABELS: Record<Category, string> = {
   phone: 'Teléfono',
@@ -18,30 +18,30 @@ export function categoryLabel(category: Category | string): string {
   return CATEGORY_LABELS[category as Category] ?? 'Producto'
 }
 
-export function productPrice(
-  product: Pick<Product, 'price_eur' | 'price_usd'>,
-  currency: Currency,
-): number {
-  return currency === 'USD' ? product.price_usd : product.price_eur
+export function productPrice(product: Pick<Product, 'price_usd'>): number {
+  return product.price_usd
 }
 
-export function productCost(
-  product: Pick<Product, 'cost_price_eur' | 'cost_price_usd'>,
-  currency: Currency,
+export function casheaPrice(product: Pick<Product, 'price_cashea_usd'>): number {
+  return product.price_cashea_usd
+}
+
+export function bcvPrice(
+  product: Pick<Product, 'price_bcv_usd'> & { price_bcv_effective_usd?: number },
 ): number {
-  return currency === 'USD' ? product.cost_price_usd : product.cost_price_eur
+  return product.price_bcv_effective_usd ?? product.price_bcv_usd
 }
 
 export function paymentLabel(method: string): string {
   return PAYMENT_LABELS[method] ?? method
 }
 
-export function money(value: number | string | null | undefined, currency = 'EUR'): string {
+export function money(value: number | string | null | undefined, currency = 'USD'): string {
   const amount = Number(value)
   try {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
-      currency: currency || 'EUR',
+      currency: currency || 'USD',
       minimumFractionDigits: 2,
     }).format(Number.isFinite(amount) ? amount : 0)
   } catch {

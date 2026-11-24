@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../api'
-import { money } from '../format'
 import { Icon } from '../icons'
 import { productImageUrl } from '../media'
 import type { Category, Product, ProductInput } from '../types'
@@ -19,10 +18,10 @@ interface FormState {
   storage_gb: string
   color: string
   category: Category
-  cost_price_eur: string
-  price_eur: string
-  cost_price_usd: string
   price_usd: string
+  price_bcv_usd: string
+  price_cashea_usd: string
+  camera: string
   threshold: string
 }
 
@@ -35,10 +34,10 @@ function stateFromProduct(product: Product | null): FormState {
     storage_gb: String(product?.storage_gb ?? 0),
     color: product?.color ?? 'Estándar',
     category: product?.category ?? 'phone',
-    cost_price_eur: String(product?.cost_price_eur ?? 0),
-    price_eur: String(product?.price_eur ?? 0),
-    cost_price_usd: String(product?.cost_price_usd ?? 0),
     price_usd: String(product?.price_usd ?? 0),
+    price_bcv_usd: String(product?.price_bcv_usd ?? 0),
+    price_cashea_usd: String(product?.price_cashea_usd ?? 0),
+    camera: product?.camera ?? '',
     threshold: String(product?.threshold ?? 0),
   }
 }
@@ -98,12 +97,6 @@ export function ProductDrawer({
     setRemoveImage(true)
   }
 
-  const priceEur = Number(form.price_eur) || 0
-  const costEur = Number(form.cost_price_eur) || 0
-  const marginEur = priceEur - costEur
-  const priceUsd = Number(form.price_usd) || 0
-  const costUsd = Number(form.cost_price_usd) || 0
-  const marginUsd = priceUsd - costUsd
   const previewName = [
     form.brand.trim(),
     form.model.trim(),
@@ -127,10 +120,9 @@ export function ProductDrawer({
     }
     if (
       [
-        form.price_eur,
-        form.cost_price_eur,
         form.price_usd,
-        form.cost_price_usd,
+        form.price_bcv_usd,
+        form.price_cashea_usd,
         form.threshold,
         form.ram_gb,
         form.storage_gb,
@@ -150,10 +142,11 @@ export function ProductDrawer({
       storage_gb: Number(form.storage_gb) || 0,
       color: form.color.trim(),
       category: form.category,
-      cost_price_eur: Number(form.cost_price_eur) || 0,
-      price_eur: Number(form.price_eur) || 0,
-      cost_price_usd: Number(form.cost_price_usd) || 0,
       price_usd: Number(form.price_usd) || 0,
+      price_bcv_usd: Number(form.price_bcv_usd) || 0,
+      price_cashea_usd: Number(form.price_cashea_usd) || 0,
+      ram_virtual_gb: 0,
+      camera: form.camera.trim() || null,
       threshold: Number(form.threshold) || 0,
     }
 
@@ -347,40 +340,6 @@ export function ProductDrawer({
               <h3>Precios y stock</h3>
               <div className="form-grid">
                 <label className="field">
-                  <span>Coste EUR</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={form.cost_price_eur}
-                    onChange={(event) =>
-                      set('cost_price_eur', event.target.value)
-                    }
-                  />
-                </label>
-                <label className="field">
-                  <span>PVP EUR</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={form.price_eur}
-                    onChange={(event) => set('price_eur', event.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  <span>Coste USD</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={form.cost_price_usd}
-                    onChange={(event) =>
-                      set('cost_price_usd', event.target.value)
-                    }
-                  />
-                </label>
-                <label className="field">
                   <span>PVP USD</span>
                   <input
                     type="number"
@@ -388,6 +347,38 @@ export function ProductDrawer({
                     step="0.01"
                     value={form.price_usd}
                     onChange={(event) => set('price_usd', event.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>Ref. BCV</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={form.price_bcv_usd}
+                    onChange={(event) =>
+                      set('price_bcv_usd', event.target.value)
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Cashea</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={form.price_cashea_usd}
+                    onChange={(event) =>
+                      set('price_cashea_usd', event.target.value)
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Cámara</span>
+                  <input
+                    value={form.camera}
+                    onChange={(event) => set('camera', event.target.value)}
+                    placeholder="Ej. 50 MP"
                   />
                 </label>
                 <label className="field">
@@ -402,28 +393,6 @@ export function ProductDrawer({
                     }
                   />
                 </label>
-              </div>
-              <div className="margin-preview">
-                <span className="muted small">Margen EUR</span>
-                <strong className={marginEur < 0 ? 'text-danger' : 'text-ok'}>
-                  {money(marginEur, 'EUR')}
-                </strong>
-                <span className="muted small">
-                  {priceEur > 0
-                    ? `${Math.round((marginEur / priceEur) * 100)}%`
-                    : '—'}
-                </span>
-              </div>
-              <div className="margin-preview">
-                <span className="muted small">Margen USD</span>
-                <strong className={marginUsd < 0 ? 'text-danger' : 'text-ok'}>
-                  {money(marginUsd, 'USD')}
-                </strong>
-                <span className="muted small">
-                  {priceUsd > 0
-                    ? `${Math.round((marginUsd / priceUsd) * 100)}%`
-                    : '—'}
-                </span>
               </div>
             </div>
 

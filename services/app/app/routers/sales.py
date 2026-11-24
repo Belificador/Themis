@@ -28,7 +28,7 @@ async def get_sales(limit: int = Query(default=100, ge=1, le=500), offset: int =
 
 
 @router.get("/summary")
-async def get_summary(currency: Currency = Query(default="EUR"), session: AsyncSession = Depends(get_session)) -> dict:
+async def get_summary(currency: Currency = Query(default="USD"), session: AsyncSession = Depends(get_session)) -> dict:
     return await sales_summary(session, currency=currency)
 
 

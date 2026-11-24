@@ -8,18 +8,16 @@ import {
   statusLabel,
 } from '../format'
 import { Icon } from '../icons'
-import type { Currency, Sale, SalesSummary } from '../types'
+import type { Sale, SalesSummary } from '../types'
 import { SaleDetailDrawer } from './SaleDetailDrawer'
 import { CategoryBadge, EmptyState, KpiCard } from './ui'
 
 export function Sales({
   refreshKey,
-  currency,
   onChanged,
   onNewSale,
 }: {
   refreshKey: number
-  currency: Currency
   onChanged: () => void
   onNewSale: () => void
 }) {
@@ -32,7 +30,7 @@ export function Sales({
   useEffect(() => {
     let active = true
     setLoading(true)
-    Promise.all([api.sales(100), api.salesSummary(currency)])
+    Promise.all([api.sales(100), api.salesSummary()])
       .then(([saleList, salesSummary]) => {
         if (!active) return
         setSales(saleList)
@@ -48,16 +46,12 @@ export function Sales({
     return () => {
       active = false
     }
-  }, [refreshKey, currency])
+  }, [refreshKey])
 
   const maxDaily = Math.max(
     1,
     ...(summary?.daily ?? []).map((entry) => entry.revenue),
   )
-  const marginPercent =
-    summary && summary.all_time.revenue > 0
-      ? Math.round((summary.all_time.margin / summary.all_time.revenue) * 100)
-      : 0
 
   return (
     <div className="stack">
@@ -71,24 +65,18 @@ export function Sales({
       <section className="kpi-grid kpi-grid-4">
         <KpiCard
           label="Ingresos hoy"
-          value={money(summary?.today.revenue ?? 0, currency)}
+          value={money(summary?.today.revenue ?? 0)}
           detail={`${summary?.today.sales ?? 0} ventas · ${summary?.today.units ?? 0} unidades`}
           tone="accent"
         />
         <KpiCard
           label="Ticket medio"
-          value={money(summary?.today.average_ticket ?? 0, currency)}
+          value={money(summary?.today.average_ticket ?? 0)}
           detail="Media de las ventas de hoy"
         />
         <KpiCard
-          label="Margen del mes"
-          value={money(summary?.month.margin ?? 0, currency)}
-          detail={`${marginPercent}% sobre ingresos históricos`}
-          tone="success"
-        />
-        <KpiCard
           label="Ingresos del mes"
-          value={money(summary?.month.revenue ?? 0, currency)}
+          value={money(summary?.month.revenue ?? 0)}
           detail={`${summary?.month.sales ?? 0} ventas`}
         />
       </section>
@@ -113,12 +101,12 @@ export function Sales({
                         (entry.revenue / maxDaily) * 100,
                       )}%`,
                     }}
-                    title={`${money(entry.revenue, currency)} · ${entry.sales} ventas`}
+                    title={`${money(entry.revenue)} · ${entry.sales} ventas`}
                   />
                 </div>
                 <span className="bar-label">{shortDate(entry.date)}</span>
                 <span className="bar-value">
-                  {entry.revenue > 0 ? money(entry.revenue, currency) : '—'}
+                  {entry.revenue > 0 ? money(entry.revenue) : '—'}
                 </span>
               </div>
             ))}
@@ -149,7 +137,7 @@ export function Sales({
                   <div className="mini-list-main">
                     <strong>{product.product_name}</strong>
                     <span className="muted small">
-                      {product.units} uds · {money(product.revenue, currency)}
+                      {product.units} uds · {money(product.revenue)}
                     </span>
                   </div>
                   <CategoryBadge category={product.category} />
@@ -166,7 +154,7 @@ export function Sales({
             <h2>Historial de ventas</h2>
             <p className="muted">
               {summary?.all_time.sales ?? 0} ventas ·{' '}
-              {money(summary?.all_time.revenue ?? 0, currency)} facturados.
+              {money(summary?.all_time.revenue ?? 0)} facturados.
             </p>
           </div>
           <button className="btn btn-primary" onClick={onNewSale}>
@@ -180,7 +168,7 @@ export function Sales({
         ) : sales.length === 0 ? (
           <EmptyState
             title="Todavía no hay ventas"
-            detail="Registra la primera venta para empezar a medir ingresos y margen."
+            detail="Registra la primera venta para empezar a medir ingresos."
             action={
               <button className="btn btn-primary btn-sm" onClick={onNewSale}>
                 Registrar venta
@@ -198,11 +186,8 @@ export function Sales({
                   <th>Vendedor</th>
                   <th>Artículos</th>
                   <th>Pago</th>
-                  <th>Moneda</th>
                   <th>Factura</th>
                   <th className="right">Ingresos</th>
-                  <th className="right">Coste</th>
-                  <th className="right">Margen</th>
                   <th>Estado</th>
                 </tr>
               </thead>
@@ -245,9 +230,6 @@ export function Sales({
                     </td>
                     <td className="small">{paymentLabel(sale.payment_method)}</td>
                     <td>
-                      <span className="badge">{sale.currency}</span>
-                    </td>
-                    <td>
                       <button
                         className="link-btn small"
                         onClick={() => setDetail(sale)}
@@ -256,13 +238,7 @@ export function Sales({
                       </button>
                     </td>
                     <td className="right strong">
-                      {money(sale.total, sale.currency)}
-                    </td>
-                    <td className="right small muted">
-                      {money(sale.cost_total, sale.currency)}
-                    </td>
-                    <td className="right small text-ok">
-                      {money(sale.margin, sale.currency)}
+                      {money(sale.total)}
                     </td>
                     <td>
                       <span

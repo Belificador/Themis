@@ -12,7 +12,7 @@ echo "==> Creando producto dinámico $SKU"
 PRODUCT=$(curl -sS -f -X POST "$BASE_URL/api/catalog/products" \
   -H 'Content-Type: application/json' \
   -H "X-Correlation-ID: demo-$(date +%s)" \
-  -d "{\"sku\":\"$SKU\",\"brand\":\"Apple\",\"model\":\"iPhone 15\",\"category\":\"phone\",\"storage_gb\":128,\"color\":\"Negro\",\"cost_price_eur\":720.00,\"price_eur\":999.00,\"cost_price_usd\":780.00,\"price_usd\":1080.00,\"threshold\":1}")
+  -d "{\"sku\":\"$SKU\",\"brand\":\"Apple\",\"model\":\"iPhone 15\",\"category\":\"phone\",\"ram_gb\":6,\"storage_gb\":128,\"color\":\"Negro\",\"price_usd\":1080.00,\"price_bcv_usd\":1300.00,\"price_cashea_usd\":1440.00,\"camera\":\"48MP\",\"threshold\":1}")
 PRODUCT_ID=$(printf '%s' "$PRODUCT" | json_field id)
 echo "product_id=$PRODUCT_ID"
 

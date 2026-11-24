@@ -1,21 +1,16 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api } from '../api'
 import {
+  casheaPrice,
   categoryLabel,
   money,
   paymentLabel,
-  productCost,
   productPrice,
   statusLabel,
 } from '../format'
 import { Icon } from '../icons'
 import casheaLogo from '../assets/cashea-logo.png'
-import type {
-  Currency,
-  DashboardRow,
-  PaymentMethod,
-  Sale,
-} from '../types'
+import type { DashboardRow, PaymentMethod, Sale } from '../types'
 
 interface Line {
   row: DashboardRow
@@ -44,19 +39,16 @@ function round2(value: number): number {
 
 export function SaleDrawer({
   initialRow,
-  defaultCurrency,
   idempotencyKey,
   onClose,
   onDone,
 }: {
   initialRow: DashboardRow | null
-  defaultCurrency: Currency
   idempotencyKey: string
   onClose: () => void
   onDone: () => void
 }) {
   const [products, setProducts] = useState<DashboardRow[]>([])
-  const [currency, setCurrency] = useState<Currency>(defaultCurrency)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -66,7 +58,7 @@ export function SaleDrawer({
           {
             row: initialRow,
             quantity: 1,
-            unitPrice: productPrice(initialRow, defaultCurrency),
+            unitPrice: productPrice(initialRow),
           },
         ]
       : [],
@@ -85,6 +77,9 @@ export function SaleDrawer({
   const [invoiceBusy, setInvoiceBusy] = useState(false)
   const [invoiceError, setInvoiceError] = useState<string | null>(null)
   const [receiptInvoiceUrl, setReceiptInvoiceUrl] = useState<string | null>(null)
+
+  const defaultUnitPrice = (row: DashboardRow) =>
+    payment === 'cashea' ? casheaPrice(row) : productPrice(row)
 
   const refreshProducts = () => {
     setLoading(true)
@@ -168,14 +163,8 @@ export function SaleDrawer({
         0,
       ),
     )
-    const cost = round2(
-      lines.reduce(
-        (sum, line) => sum + productCost(line.row, currency) * line.quantity,
-        0,
-      ),
-    )
-    return { subtotal, cost, margin: round2(subtotal - cost) }
-  }, [lines, currency])
+    return { subtotal }
+  }, [lines])
 
   const available = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -198,7 +187,7 @@ export function SaleDrawer({
       if (!existing) {
         return [
           ...current,
-          { row, quantity: 1, unitPrice: productPrice(row, currency) },
+          { row, quantity: 1, unitPrice: defaultUnitPrice(row) },
         ]
       }
       if (existing.quantity >= row.quantity) return current
@@ -269,7 +258,7 @@ export function SaleDrawer({
           unit_price: round2(line.unitPrice),
         })),
         payment_method: payment,
-        currency,
+        currency: 'USD',
         customer_name: customer.trim() || null,
         vendedor: vendedor.trim() || null,
         note: note.trim() || null,
@@ -290,7 +279,6 @@ export function SaleDrawer({
     setLines([])
     setSearch('')
     setPayment('cash')
-    setCurrency(defaultCurrency)
     setCustomer('')
     setVendedor('')
     setNote('')
@@ -341,7 +329,7 @@ export function SaleDrawer({
             <h2>{receipt ? receipt.sale_number : 'Nueva venta'}</h2>
             <p className="muted small">
               {receipt
-                ? `${money(receipt.total, receipt.currency)} · ${statusLabel(receipt.status)}`
+                ? `${money(receipt.total)} · ${statusLabel(receipt.status)}`
                 : 'Carrito multi-producto con descuento de stock automático.'}
             </p>
           </div>
@@ -376,10 +364,10 @@ export function SaleDrawer({
                     <div>
                       <strong>{item.product_name}</strong>
                       <span className="muted small">
-                        {item.quantity} × {money(item.unit_price, receipt.currency)}
+                        {item.quantity} × {money(item.unit_price)}
                       </span>
                     </div>
-                    <strong>{money(item.line_total, receipt.currency)}</strong>
+                    <strong>{money(item.line_total)}</strong>
                   </li>
                 ))}
               </ul>
@@ -395,17 +383,21 @@ export function SaleDrawer({
                     <dd>{receipt.customer_name}</dd>
                   </div>
                 )}
-                <div>
-                  <dt>Coste</dt>
-                  <dd>{money(receipt.cost_total, receipt.currency)}</dd>
-                </div>
-                <div>
-                  <dt>Margen</dt>
-                  <dd>{money(receipt.margin, receipt.currency)}</dd>
-                </div>
+                {receipt.vendedor && (
+                  <div>
+                    <dt>Vendedor</dt>
+                    <dd>{receipt.vendedor}</dd>
+                  </div>
+                )}
+                {receipt.note && (
+                  <div>
+                    <dt>Nota</dt>
+                    <dd>{receipt.note}</dd>
+                  </div>
+                )}
                 <div className="receipt-total-row">
                   <dt>Total</dt>
-                  <dd>{money(receipt.total, receipt.currency)}</dd>
+                  <dd>{money(receipt.total)}</dd>
                 </div>
               </dl>
 
@@ -481,29 +473,6 @@ export function SaleDrawer({
         ) : (
           <form className="drawer-form" onSubmit={submit}>
             <div className="drawer-body">
-              <div className="form-section compact">
-                <h3>Moneda de la venta</h3>
-                <div className="segmented">
-                  {(['EUR', 'USD'] as Currency[]).map((code) => (
-                    <button
-                      type="button"
-                      key={code}
-                      className={currency === code ? 'active' : ''}
-                      onClick={() => setCurrency(code)}
-                      disabled={lines.length > 0}
-                    >
-                      {code}
-                    </button>
-                  ))}
-                </div>
-                {lines.length > 0 && (
-                  <p className="muted small">
-                    Vacía el carrito para cambiar de moneda y conservar los
-                    precios manuales.
-                  </p>
-                )}
-              </div>
-
               <div className="sale-picker">
                 <label className="search-box">
                   <Icon name="search" size={16} />
@@ -537,7 +506,7 @@ export function SaleDrawer({
                               <span className="muted small">
                                 {row.quantity} uds
                               </span>
-                              <strong>{money(productPrice(row, currency), currency)}</strong>
+                              <strong>{money(defaultUnitPrice(row))}</strong>
                               <Icon name="plus" size={16} />
                             </span>
                           </button>
@@ -607,12 +576,7 @@ export function SaleDrawer({
                         </label>
                         <div className="sale-line-total">
                           <span className="muted small">Total</span>
-                          <strong>
-                            {money(
-                              line.unitPrice * line.quantity,
-                              currency,
-                            )}
-                          </strong>
+                          <strong>{money(line.unitPrice * line.quantity)}</strong>
                         </div>
                       </div>
                     </li>
@@ -705,17 +669,7 @@ export function SaleDrawer({
               <div className="sale-totals">
                 <div>
                   <span className="muted small">Subtotal</span>
-                  <strong>{money(totals.subtotal, currency)}</strong>
-                </div>
-                <div>
-                  <span className="muted small">Coste</span>
-                  <span>{money(totals.cost, currency)}</span>
-                </div>
-                <div>
-                  <span className="muted small">Margen</span>
-                  <span className="text-ok">
-                    {money(totals.margin, currency)}
-                  </span>
+                  <strong>{money(totals.subtotal)}</strong>
                 </div>
               </div>
 
@@ -730,7 +684,7 @@ export function SaleDrawer({
             <footer className="drawer-foot">
               <div className="drawer-total">
                 <span className="muted small">Total</span>
-                <strong>{money(totals.subtotal, currency)}</strong>
+                <strong>{money(totals.subtotal)}</strong>
               </div>
               <button
                 type="submit"

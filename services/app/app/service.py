@@ -132,25 +132,25 @@ async def create_sale(session: AsyncSession, payload: SaleCreate) -> Sale:
         snapshots[product_id] = snapshot
 
     currency = payload.currency
-    price_key = f"price_{currency.lower()}"
-    cost_key = f"cost_price_{currency.lower()}"
 
     sale_id = uuid.uuid4()
     created_at = datetime.now(timezone.utc)
     currency_total = Decimal("0")
-    cost_total = Decimal("0")
     items: list[SaleItem] = []
 
     for product_id, requested in merged.items():
         snapshot = snapshots[product_id]
         quantity = int(requested["quantity"])
-        unit_price = requested["unit_price"] if requested["unit_price"] is not None else _money(getattr(snapshot, price_key))
-        unit_cost = _money(getattr(snapshot, cost_key))
+        unit_price = requested["unit_price"]
+        if unit_price is None:
+            if payload.payment_method == "cashea" and snapshot.price_cashea_usd:
+                unit_price = _money(snapshot.price_cashea_usd)
+            else:
+                unit_price = _money(snapshot.price_usd)
+        else:
+            unit_price = _money(unit_price)
         line_total = _money(unit_price * quantity)
-        line_cost = _money(unit_cost * quantity)
-        line_margin = _money(line_total - line_cost)
         currency_total += line_total
-        cost_total += line_cost
         items.append(
             SaleItem(
                 product_id=product_id,
@@ -159,10 +159,7 @@ async def create_sale(session: AsyncSession, payload: SaleCreate) -> Sale:
                 category=snapshot.category,
                 quantity=quantity,
                 unit_price=unit_price,
-                unit_cost=unit_cost,
                 line_total=line_total,
-                line_cost=line_cost,
-                line_margin=line_margin,
             )
         )
 
@@ -177,8 +174,6 @@ async def create_sale(session: AsyncSession, payload: SaleCreate) -> Sale:
         note=payload.note,
         currency=currency,
         total=_money(currency_total),
-        cost_total=_money(cost_total),
-        margin=_money(currency_total - cost_total),
         created_at=created_at,
         items=items,
     )
@@ -231,21 +226,17 @@ def _as_date(value: datetime) -> date:
 
 def _period(sales: list[Sale]) -> dict[str, float]:
     total = sum((sale.total for sale in sales), Decimal("0"))
-    cost = sum((sale.cost_total for sale in sales), Decimal("0"))
-    margin = sum((sale.margin for sale in sales), Decimal("0"))
     units = sum(item.quantity for sale in sales for item in sale.items)
     count = len(sales)
     return {
         "sales": count,
         "units": units,
         "revenue": _float(total),
-        "cost": _float(cost),
-        "margin": _float(margin),
         "average_ticket": _float(total / count) if count else 0.0,
     }
 
 
-async def sales_summary(session: AsyncSession, currency: str = "EUR") -> dict[str, Any]:
+async def sales_summary(session: AsyncSession, currency: str = "USD") -> dict[str, Any]:
     result = await session.execute(
         select(Sale)
         .options(_load_options())

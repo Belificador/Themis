@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api } from '../api'
-import { dateTime, money, productCost, productPrice } from '../format'
+import { dateTime, money, bcvPrice, productPrice } from '../format'
 import { Icon } from '../icons'
-import type { Currency, DashboardRow, Movement } from '../types'
+import type { DashboardRow, Movement } from '../types'
 
 export type StockMode = 'entry' | 'exit' | 'set' | 'history'
 
@@ -21,13 +21,11 @@ const HINTS: Record<Exclude<StockMode, 'history'>, string> = {
 
 export function StockDrawer({
   row,
-  currency,
   mode,
   onClose,
   onDone,
 }: {
   row: DashboardRow
-  currency: Currency
   mode: StockMode
   onClose: () => void
   onDone: (message: string) => void
@@ -135,9 +133,9 @@ export function StockDrawer({
           <div>
             <span className="eyebrow">Inventario</span>
             <h2>{row.product_name}</h2>
-            <p className="muted small mono">
-              {row.sku} · {money(productPrice(row, currency), currency)} · {money(productCost(row, currency), currency)}
-            </p>
+              <p className="muted small mono">
+                {row.sku} · {money(productPrice(row))} · {money(bcvPrice(row))}
+              </p>
           </div>
           <button
             className="icon-btn"

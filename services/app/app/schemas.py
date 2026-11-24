@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Category = Literal["phone", "tablet", "accessory"]
 PaymentMethod = Literal["cash", "card", "transfer", "other", "cashea"]
-Currency = Literal["EUR", "USD"]
+Currency = Literal["USD"]
 
 
 class ProductBase(BaseModel):
@@ -19,10 +19,11 @@ class ProductBase(BaseModel):
     ram_gb: int = Field(default=0, ge=0, le=1024)
     color: str = Field(min_length=1, max_length=40)
     category: Category = "phone"
-    cost_price_eur: float = Field(default=0, ge=0)
-    price_eur: float = Field(ge=0)
-    cost_price_usd: float = Field(default=0, ge=0)
     price_usd: float = Field(ge=0)
+    price_bcv_usd: float = Field(default=0, ge=0)
+    price_cashea_usd: float = Field(default=0, ge=0)
+    camera: Optional[str] = Field(default=None, max_length=120)
+    ram_virtual_gb: int = Field(default=0, ge=0)
     threshold: int = Field(default=0, ge=0)
 
     @field_validator("sku", "brand", "model", "color")
@@ -46,10 +47,11 @@ class ProductUpdate(BaseModel):
     ram_gb: Optional[int] = Field(default=None, ge=0, le=1024)
     color: Optional[str] = Field(default=None, min_length=1, max_length=40)
     category: Optional[Category] = None
-    cost_price_eur: Optional[float] = Field(default=None, ge=0)
-    price_eur: Optional[float] = Field(default=None, ge=0)
-    cost_price_usd: Optional[float] = Field(default=None, ge=0)
     price_usd: Optional[float] = Field(default=None, ge=0)
+    price_bcv_usd: Optional[float] = Field(default=None, ge=0)
+    price_cashea_usd: Optional[float] = Field(default=None, ge=0)
+    camera: Optional[str] = Field(default=None, max_length=120)
+    ram_virtual_gb: Optional[int] = Field(default=None, ge=0)
     threshold: Optional[int] = Field(default=None, ge=0)
 
     @field_validator("sku", "brand", "model", "color")
@@ -127,7 +129,7 @@ class SaleItemCreate(BaseModel):
 class SaleCreate(BaseModel):
     items: list[SaleItemCreate] = Field(min_length=1, max_length=50)
     payment_method: PaymentMethod = "cash"
-    currency: Currency = "EUR"
+    currency: Currency = "USD"
     customer_name: Optional[str] = Field(default=None, max_length=120)
     vendedor: Optional[str] = Field(default=None, max_length=120)
     note: Optional[str] = Field(default=None, max_length=500)
@@ -150,10 +152,7 @@ class SaleItemRead(BaseModel):
     category: str
     quantity: int
     unit_price: float
-    unit_cost: float
     line_total: float
-    line_cost: float
-    line_margin: float
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -168,8 +167,6 @@ class SaleRead(BaseModel):
     note: Optional[str]
     currency: str
     total: float
-    cost_total: float
-    margin: float
     invoice_filename: Optional[str]
     invoice_content_type: Optional[str]
     invoice_size: Optional[int]
@@ -184,8 +181,6 @@ class PeriodStats(BaseModel):
     sales: int
     units: int
     revenue: float
-    cost: float
-    margin: float
     average_ticket: float
 
 

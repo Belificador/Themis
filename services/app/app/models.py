@@ -40,14 +40,15 @@ class Product(Base):
     category: Mapped[str] = mapped_column(
         String(20), nullable=False, default="phone"
     )
-    cost_price_eur: Mapped[Decimal] = mapped_column(
-        Numeric(12, 2), nullable=False, default=0
-    )
-    price_eur: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    cost_price_usd: Mapped[Decimal] = mapped_column(
-        Numeric(12, 2), nullable=False, default=0
-    )
     price_usd: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    price_bcv_usd: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, default=0
+    )
+    price_cashea_usd: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, default=0
+    )
+    camera: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    ram_virtual_gb: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     image_stored_name: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=True
@@ -67,8 +68,10 @@ class Product(Base):
     @property
     def product_name(self) -> str:
         parts = [self.brand, self.model]
-        if self.ram_gb:
-            parts.append(f"{self.ram_gb}GB")
+        ram_part = f"{self.ram_gb}GB"
+        if self.ram_virtual_gb:
+            ram_part = f"{self.ram_gb}+{self.ram_virtual_gb}GB"
+        parts.append(ram_part)
         if self.storage_gb:
             parts.append(f"{self.storage_gb}GB")
         parts.append(self.color)
@@ -155,10 +158,8 @@ class Sale(Base):
         String(20), nullable=False, default="cash"
     )
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
     total: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    cost_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    margin: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     invoice_stored_name: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=True
     )
@@ -228,9 +229,6 @@ class SaleItem(Base):
     category: Mapped[str] = mapped_column(String(20), nullable=False, default="phone")
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    unit_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     line_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    line_cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
-    line_margin: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
 
     sale: Mapped[Sale] = relationship(back_populates="items")

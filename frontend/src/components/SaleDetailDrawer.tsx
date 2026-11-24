@@ -125,7 +125,7 @@ export function SaleDetailDrawer({
             <h2>{current.sale_number}</h2>
             <p className="muted small">
               {dateTime(current.created_at)} ·{' '}
-              {money(current.total, current.currency)} ·{' '}
+              {money(current.total)} ·{' '}
               {statusLabel(current.status)}
             </p>
           </div>
@@ -146,10 +146,10 @@ export function SaleDetailDrawer({
                 <div>
                   <strong>{item.product_name}</strong>
                   <span className="muted small">
-                    {item.quantity} × {money(item.unit_price, current.currency)}
+                    {item.quantity} × {money(item.unit_price)}
                   </span>
                 </div>
-                <strong>{money(item.line_total, current.currency)}</strong>
+                <strong>{money(item.line_total)}</strong>
               </li>
             ))}
           </ul>
@@ -177,14 +177,6 @@ export function SaleDetailDrawer({
                 <dd>{current.note}</dd>
               </div>
             )}
-            <div>
-              <dt>Coste</dt>
-              <dd>{money(current.cost_total, current.currency)}</dd>
-            </div>
-            <div>
-              <dt>Margen</dt>
-              <dd>{money(current.margin, current.currency)}</dd>
-            </div>
             <div className="receipt-total-row">
               <dt>Total</dt>
               <dd>{money(current.total, current.currency)}</dd>

@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api'
-import { money, productCost, productPrice, stockStatus } from '../format'
+import { bcvPrice, money, productPrice, stockStatus } from '../format'
 import { Icon } from '../icons'
 import type {
   Category,
-  Currency,
   DashboardResponse,
   DashboardRow,
   Product,
@@ -24,7 +23,6 @@ type StatusFilter = 'all' | 'low' | 'out'
 
 export function Inventory({
   refreshKey,
-  currency,
   onChanged,
   onSell,
   onEdit,
@@ -32,7 +30,6 @@ export function Inventory({
   onToast,
 }: {
   refreshKey: number
-  currency: Currency
   onChanged: () => void
   onSell: (row: DashboardRow) => void
   onEdit: (product: Product) => void
@@ -85,13 +82,10 @@ export function Inventory({
     })
   }, [data, search, category, status])
 
-  const totals =
-    data?.totals.find((entry) => entry.currency === currency) ?? data?.totals[0]
-  const otherCurrency: Currency = currency === 'EUR' ? 'USD' : 'EUR'
+  const totals = data?.totals[0]
   const outOfStock = (data?.products ?? []).filter(
     (row) => row.stock_synced && row.quantity === 0,
   ).length
-  const potentialMargin = (totals?.retail_value ?? 0) - (totals?.cost_value ?? 0)
 
   return (
     <div className="stack">
@@ -105,14 +99,14 @@ export function Inventory({
       <section className="kpi-grid kpi-grid-4">
         <KpiCard
           label="Valor de venta"
-          value={money(totals?.retail_value ?? 0, currency)}
+          value={money(totals?.retail_value ?? 0)}
           detail={`${data?.total_units ?? 0} unidades`}
           tone="accent"
         />
         <KpiCard
-          label="Valor al costo"
-          value={money(totals?.cost_value ?? 0, currency)}
-          detail={`Margen potencial ${money(potentialMargin, currency)}`}
+          label="Valor al precio BCV"
+          value={money(totals?.bcv_retail_value ?? 0)}
+          detail={`factor ${(data?.bcv_factor ?? 0).toFixed(2)}`}
         />
         <KpiCard
           label="Bajo stock"
@@ -186,8 +180,8 @@ export function Inventory({
                 <tr>
                   <th>Producto</th>
                   <th>Categoría</th>
-                  <th className="right">Costo</th>
                   <th className="right">PVP</th>
+                  <th className="right">Ref BCV</th>
                   <th className="right">Stock</th>
                   <th className="right">Valor</th>
                   <th>Estado</th>
@@ -200,6 +194,9 @@ export function Inventory({
                     row.quantity,
                     row.threshold,
                     row.stock_synced,
+                  )
+                  const ram = `${row.ram_gb} GB RAM` + (
+                    row.ram_virtual_gb > 0 ? ` +${row.ram_virtual_gb}` : ''
                   )
                   return (
                     <tr key={row.id}>
@@ -221,10 +218,11 @@ export function Inventory({
                             <strong>{row.product_name}</strong>
                             <span className="muted small">
                               {row.sku}
-                              {row.ram_gb > 0 ? ` · ${row.ram_gb} GB RAM` : ''}
+                              {row.ram_gb > 0 ? ` · ${ram}` : ''}
                               {row.storage_gb > 0
                                 ? ` · ${row.storage_gb} GB`
                                 : ''}
+                              {row.camera ? ` · ${row.camera}` : ''}
                             </span>
                           </div>
                         </div>
@@ -232,14 +230,11 @@ export function Inventory({
                       <td>
                         <CategoryBadge category={row.category} />
                       </td>
-                      <td className="right small muted">
-                        {money(productCost(row, currency), currency)}
-                      </td>
                       <td className="right strong">
-                        {money(productPrice(row, currency), currency)}
-                        <span className="price-sub">
-                          {money(productPrice(row, otherCurrency), otherCurrency)}
-                        </span>
+                        {money(productPrice(row))}
+                      </td>
+                      <td className="right small muted">
+                        {money(bcvPrice(row))}
                       </td>
                       <td className="right">
                         <button
@@ -253,10 +248,7 @@ export function Inventory({
                         </button>
                       </td>
                       <td className="right small">
-                        {money(
-                          productPrice(row, currency) * row.quantity,
-                          currency,
-                        )}
+                        {money(productPrice(row) * row.quantity)}
                       </td>
                       <td>
                         <span className={`badge badge-${statusInfo.tone}`}>
@@ -302,7 +294,6 @@ export function Inventory({
       {stockTarget && (
         <StockDrawer
           row={stockTarget.row}
-          currency={currency}
           mode={stockTarget.mode}
           onClose={() => setStockTarget(null)}
           onDone={(message) => {

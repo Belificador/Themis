@@ -1,10 +1,10 @@
 # Themis — inventario y ventas en un solo servicio
 
 Webapp para gestionar un catálogo **100% dinámico** de teléfonos, tablets y
-accesorios: stock editable, coste/PVP en EUR y USD, valor del inventario, ventas
-con carrito multi-producto, vendedor, factura fiscal opcional e imágenes de
-producto. Todo el backend es **un único servicio FastAPI** con una sola base de
-datos; no hay microservicios ni colas de mensajes.
+accesorios: stock editable, PVP en USD, Ref. BCV y precio Cashea, valor del
+inventario, ventas con carrito multi-producto, vendedor, factura fiscal opcional
+e imágenes de producto. Todo el backend es **un único servicio FastAPI** con una
+sola base de datos; no hay microservicios ni colas de mensajes.
 
 ## Arquitectura
 
@@ -38,10 +38,11 @@ No hay marcas, modelos ni capacidades hardcodeadas. Cualquier producto se crea
 por API/UI con:
 
 `sku` (único), `brand`, `model`, `category` (`phone|tablet|accessory`),
-`ram_gb`, `storage_gb`, `color`, `cost_price_eur`, `price_eur`,
-`cost_price_usd`, `price_usd`, `threshold`. `ram_gb`/`storage_gb` admiten `0`
-para accesorios. Los precios se editan en EUR y USD; cada venta elige la moneda
-y los totales se resuelven por moneda sin mezclar importes.
+`ram_gb`, `ram_virtual_gb`, `storage_gb`, `color`, `price_usd`,
+`price_bcv_usd`, `price_cashea_usd`, `camera`, `threshold`.
+`ram_gb`/`storage_gb` admiten `0` para accesorios. Los precios son en USD y el
+precio de Ref. BCV se recalcula con la tasa oficial/paralelo; cada venta elige
+si cobra al PVP o al precio Cashea.
 
 Al crear un producto se crea automáticamente su registro de stock (cantidad 0).
 Cada producto admite una imagen opcional (JPG/PNG/WebP) que se puede subir,
@@ -61,15 +62,14 @@ imagen se guarda en el bucket público; si no, en `MEDIA_DIR`.
 
 ### Ventas
 
-1. Se crea la venta con una copia del precio/coste de cada producto y una clave
+1. Se crea la venta con una copia del precio de cada producto y una clave
    de idempotencia opcional.
 2. Se descuenta el stock en la misma transacción; si falta stock se devuelve 409.
-3. La venta queda `completed` y se calculan ingresos, coste y margen.
+3. La venta queda `completed` y se calculan los ingresos.
 
 Cada venta admite varias líneas, precio unitario editable, método de pago
-(`cash|card|transfer|other|cashea`), moneda (`EUR|USD`), cliente, **vendedor** y
-nota opcionales. El resumen (`/api/sales/summary`) acepta `?currency=EUR|USD`
-para no mezclar importes.
+(`cash|card|transfer|other|cashea`), cliente, **vendedor** y nota opcionales.
+El resumen (`/api/sales/summary`) devuelve los totales en USD.
 
 La factura fiscal opcional (JPG, PNG, WebP o PDF, máx. 10 MB) se sube tras
 registrar la venta y se puede ver o eliminar desde el detalle. La previsualización
@@ -178,7 +178,7 @@ Todas las rutas cuelgan del mismo servicio (`:8000`).
 | --- | --- | --- |
 | `POST` | `/sales` | Crear venta (`vendedor`, `currency`, `idempotency_key` opcionales) |
 | `GET` | `/sales?limit=100&offset=&status=&search=` | Historial (busca también por vendedor) |
-| `GET` | `/sales/summary?currency=EUR|USD` | Totales de hoy/mes, margen, ranking y 7 días |
+| `GET` | `/sales/summary` | Totales de hoy/mes, ranking y 7 días en USD |
 | `GET` | `/sales/{id}` | Detalle |
 | `POST` | `/sales/{id}/invoice` | Subir factura fiscal (multipart `file`) |
 | `GET` | `/sales/{id}/invoice-url` | URL firmada temporal de la factura |

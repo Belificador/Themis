@@ -15,7 +15,7 @@ from sqlalchemy import text
 
 from .config import settings
 from .db import Base, SessionLocal, engine
-from .routers import dashboard, notifications, products, sales, stock
+from .routers import dashboard, notifications, products, rates, sales, stock
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,7 @@ app.include_router(sales.router)
 app.include_router(stock.router)
 app.include_router(notifications.router)
 app.include_router(dashboard.router)
+app.include_router(rates.router)
 
 
 @app.get("/health", tags=["health"])
