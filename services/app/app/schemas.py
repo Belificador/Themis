@@ -246,3 +246,22 @@ class SalesSummary(BaseModel):
     daily: list[dict]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class UserRead(BaseModel):
+    id: uuid.UUID
+    username: str
+    role: str
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)

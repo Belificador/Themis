@@ -7,7 +7,7 @@ from pathlib import Path
 
 from egm_common.db import init_models
 from egm_common.logging import CorrelationIdMiddleware, configure_logging
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -15,7 +15,8 @@ from sqlalchemy import text
 
 from .config import settings
 from .db import Base, SessionLocal, engine
-from .routers import dashboard, notifications, products, rates, sales, stock
+from .routers import auth, dashboard, notifications, products, rates, sales, stock
+from .service import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +68,23 @@ if settings.cors_origins or settings.cors_origin_regex:
         allow_headers=["*"],
         expose_headers=["X-Correlation-ID"],
     )
-app.include_router(products.router)
-app.include_router(sales.router)
-app.include_router(stock.router)
-app.include_router(notifications.router)
-app.include_router(dashboard.router)
-app.include_router(rates.router)
+app.include_router(auth.router)
+app.include_router(
+    products.router, dependencies=[Depends(get_current_user)]
+)
+app.include_router(
+    sales.router, dependencies=[Depends(get_current_user)]
+)
+app.include_router(
+    stock.router, dependencies=[Depends(get_current_user)]
+)
+app.include_router(
+    notifications.router, dependencies=[Depends(get_current_user)]
+)
+app.include_router(
+    dashboard.router, dependencies=[Depends(get_current_user)]
+)
+app.include_router(rates.router, dependencies=[Depends(get_current_user)])
 
 
 @app.get("/health", tags=["health"])
