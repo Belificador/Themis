@@ -147,6 +147,7 @@ export function SaleDetailDrawer({
                   <strong>{item.product_name}</strong>
                   <span className="muted small">
                     {item.quantity} × {money(item.unit_price)}
+                    {item.imei ? ` · IMEI: ${item.imei}` : ''}
                   </span>
                 </div>
                 <strong>{money(item.line_total)}</strong>

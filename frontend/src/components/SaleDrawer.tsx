@@ -16,6 +16,7 @@ interface Line {
   row: DashboardRow
   quantity: number
   unitPrice: number
+  imei: string
 }
 
 const PAYMENTS: { id: PaymentMethod; label: string }[] = [
@@ -59,6 +60,7 @@ export function SaleDrawer({
             row: initialRow,
             quantity: 1,
             unitPrice: productPrice(initialRow),
+            imei: '',
           },
         ]
       : [],
@@ -187,7 +189,7 @@ export function SaleDrawer({
       if (!existing) {
         return [
           ...current,
-          { row, quantity: 1, unitPrice: defaultUnitPrice(row) },
+          { row, quantity: 1, unitPrice: defaultUnitPrice(row), imei: '' },
         ]
       }
       if (existing.quantity >= row.quantity) return current
@@ -223,6 +225,14 @@ export function SaleDrawer({
     )
   }
 
+  const updateImei = (productId: string, value: string) => {
+    setLines((current) =>
+      current.map((line) =>
+        line.row.id === productId ? { ...line, imei: value.trim() } : line,
+      ),
+    )
+  }
+
   const removeLine = (productId: string) => {
     setLines((current) => current.filter((line) => line.row.id !== productId))
   }
@@ -233,6 +243,18 @@ export function SaleDrawer({
       setError('Añade al menos un producto a la venta.')
       return
     }
+
+    // Validar cliente y vendedor
+    if (!customer.trim()) {
+      setError('El cliente es obligatorio.')
+      return
+    }
+    if (!vendedor.trim()) {
+      setError('El vendedor es obligatorio.')
+      return
+    }
+
+    // Validar cada línea
     for (const line of lines) {
       if (!Number.isInteger(line.quantity) || line.quantity <= 0) {
         setError('Cada línea debe tener una cantidad entera mayor que 0.')
@@ -246,6 +268,10 @@ export function SaleDrawer({
         setError('Los precios no pueden ser negativos.')
         return
       }
+      if (!line.imei.trim()) {
+        setError(`El IMEI es obligatorio para ${line.row.product_name}.`)
+        return
+      }
     }
 
     setBusy(true)
@@ -256,11 +282,12 @@ export function SaleDrawer({
           product_id: line.row.id,
           quantity: line.quantity,
           unit_price: round2(line.unitPrice),
+          imei: line.imei,
         })),
         payment_method: payment,
         currency: 'USD',
-        customer_name: customer.trim() || null,
-        vendedor: vendedor.trim() || null,
+        customer_name: customer.trim(),
+        vendedor: vendedor.trim(),
         note: note.trim() || null,
         idempotency_key: key,
       })
@@ -365,6 +392,7 @@ export function SaleDrawer({
                       <strong>{item.product_name}</strong>
                       <span className="muted small">
                         {item.quantity} × {money(item.unit_price)}
+                        {item.imei ? ` · IMEI: ${item.imei}` : ''}
                       </span>
                     </div>
                     <strong>{money(item.line_total)}</strong>
@@ -574,6 +602,18 @@ export function SaleDrawer({
                             }
                           />
                         </label>
+                        <label className="field">
+                          <span>IMEI (obligatorio)</span>
+                          <input
+                            type="text"
+                            maxLength={64}
+                            value={line.imei}
+                            onChange={(event) =>
+                              updateImei(line.row.id, event.target.value)
+                            }
+                            placeholder="Ej. 351234567890123"
+                          />
+                        </label>
                         <div className="sale-line-total">
                           <span className="muted small">Total</span>
                           <strong>{money(line.unitPrice * line.quantity)}</strong>
@@ -637,7 +677,7 @@ export function SaleDrawer({
                     </div>
                   </label>
                   <label className="field">
-                    <span>Cliente (opcional)</span>
+                    <span>Cliente (obligatorio)</span>
                     <input
                       value={customer}
                       onChange={(event) => setCustomer(event.target.value)}
@@ -646,7 +686,7 @@ export function SaleDrawer({
                     />
                   </label>
                   <label className="field">
-                    <span>Vendedor (opcional)</span>
+                    <span>Vendedor (obligatorio)</span>
                     <input
                       value={vendedor}
                       onChange={(event) => setVendedor(event.target.value)}

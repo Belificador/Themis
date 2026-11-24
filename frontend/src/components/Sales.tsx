@@ -26,6 +26,7 @@ export function Sales({
   const [detail, setDetail] = useState<Sale | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -53,12 +54,35 @@ export function Sales({
     ...(summary?.daily ?? []).map((entry) => entry.revenue),
   )
 
+  const handleDeleteSale = async (sale: Sale) => {
+    if (
+      !window.confirm(
+        `¿Eliminar la venta ${sale.sale_number} y restaurar su stock?`,
+      )
+    )
+      return
+    setDeleteError(null)
+    try {
+      await api.deleteSale(sale.id)
+      const updated = await api.sales(100)
+      setSales(updated)
+    } catch (err) {
+      setDeleteError((err as Error).message)
+    }
+  }
+
   return (
     <div className="stack">
       {error && (
         <div className="alert alert-error">
           <Icon name="alert" />
           <span>{error}</span>
+        </div>
+      )}
+      {deleteError && (
+        <div className="alert alert-error">
+          <Icon name="alert" />
+          <span>{deleteError}</span>
         </div>
       )}
 
@@ -186,9 +210,11 @@ export function Sales({
                   <th>Vendedor</th>
                   <th>Artículos</th>
                   <th>Pago</th>
+                  <th>IMEI</th>
                   <th>Factura</th>
                   <th className="right">Ingresos</th>
                   <th>Estado</th>
+                  <th className="right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -229,6 +255,12 @@ export function Sales({
                       </div>
                     </td>
                     <td className="small">{paymentLabel(sale.payment_method)}</td>
+                    <td className="small muted">
+                      {sale.items
+                        .map((item) => item.imei)
+                        .filter(Boolean)
+                        .join(', ') || '—'}
+                    </td>
                     <td>
                       <button
                         className="link-btn small"
@@ -252,6 +284,15 @@ export function Sales({
                       >
                         {statusLabel(sale.status)}
                       </span>
+                    </td>
+                    <td className="right">
+                      <button
+                        className="link-btn small text-danger"
+                        onClick={() => handleDeleteSale(sale)}
+                      >
+                        <Icon name="close" size={14} />
+                        Eliminar
+                      </button>
                     </td>
                   </tr>
                 ))}

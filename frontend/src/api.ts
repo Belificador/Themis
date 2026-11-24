@@ -109,6 +109,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  deleteSale: (saleId: string) =>
+    request<void>(`/api/sales/${saleId}`, {
+      method: 'DELETE',
+    }),
   uploadInvoice: (saleId: string, file: File) => {
     const form = new FormData()
     form.append('file', file)

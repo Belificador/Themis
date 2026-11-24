@@ -129,9 +129,10 @@ export interface SaleItem {
   sku: string
   product_name: string
   category: Category
-  quantity: number
-  unit_price: number
-  line_total: number
+    quantity: number
+    unit_price: number
+    line_total: number
+    imei?: string
 }
 
 export interface Sale {
