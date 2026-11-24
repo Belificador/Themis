@@ -1,19 +1,9 @@
-#!/usr/bin/env python3
-"""Crea el usuario Playcell directamente en la base de datos (contraseña hasheada).
-
-Se ejecuta una sola vez. La contraseña nunca viaja en texto plano por la red.
-
-Usage:
-    SUPABASE_DB_PASSWORD=TX0dAwjHUxJVARyL DB_SCHEMA=themis \
-    PYTHONPATH=/home/sprite/Themis/libs:/home/sprite/Themis/services/app \
-    python3 scripts/create_user_db.py
-"""
-
 from __future__ import annotations
 
 import asyncio
 import os
 import sys
+import uuid
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "libs"))
 
@@ -27,14 +17,15 @@ PASSWORD = os.getenv("AUTH_PASSWORD", "playcellalex")
 
 async def main() -> None:
     password_hash = hash_password(PASSWORD)
+    user_id = str(uuid.uuid4())
     async with engine.begin() as conn:
         await conn.execute(
             text(
-                "INSERT INTO users (username, password_hash, role, is_active) "
-                "VALUES (:username, :password_hash, 'admin', true) "
+                "INSERT INTO users (id, username, password_hash, role, is_active) "
+                "VALUES (:id, :username, :password_hash, 'admin', true) "
                 "ON CONFLICT (username) DO NOTHING"
             ),
-            {"username": USERNAME, "password_hash": password_hash},
+            {"id": user_id, "username": USERNAME, "password_hash": password_hash},
         )
     print(f"Usuario '{USERNAME}' listo (contraseña hasheada en BD).")
     await engine.dispose()
