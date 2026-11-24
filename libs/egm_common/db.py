@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from typing import Optional
 
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 logger = logging.getLogger(__name__)
@@ -59,13 +58,13 @@ async def init_models(
     delay_seconds: float = 2.0,
 ) -> None:
     """Create tables, retrying while the database becomes ready."""
-    use_schema = schema and engine.dialect.name != "sqlite"
+    use_schema = bool(schema) and engine.dialect.name != "sqlite"
     for attempt in range(1, attempts + 1):
         try:
             async with engine.begin() as connection:
                 if use_schema:
                     await connection.execute(
-                        f'CREATE SCHEMA IF NOT EXISTS "{schema}"'
+                        text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
                     )
                 await connection.run_sync(base.metadata.create_all)
             logger.info("database schema ready")
