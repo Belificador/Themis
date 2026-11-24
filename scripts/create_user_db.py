@@ -21,8 +21,8 @@ async def main() -> None:
     async with engine.begin() as conn:
         await conn.execute(
             text(
-                "INSERT INTO users (id, username, password_hash, role, is_active) "
-                "VALUES (:id, :username, :password_hash, 'admin', true) "
+                "INSERT INTO users (id, username, password_hash, role, is_active, created_at) "
+                "VALUES (:id, :username, :password_hash, 'admin', true, now()) "
                 "ON CONFLICT (username) DO NOTHING"
             ),
             {"id": user_id, "username": USERNAME, "password_hash": password_hash},
