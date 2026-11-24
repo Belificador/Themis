@@ -96,7 +96,7 @@ class SupabaseClient:
             response = await client.post(
                 url,
                 headers=self._service_headers(),
-                json={"expires_in": expires_in},
+                json={"expiresIn": expires_in},
             )
         if response.status_code not in (200, 201):
             raise RuntimeError(
