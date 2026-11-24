@@ -42,6 +42,8 @@ def create_engine(
         database_url, pool_pre_ping=True, future=True, connect_args=connect_args
     )
 
+    return engine
+
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
