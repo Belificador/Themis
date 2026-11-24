@@ -12,7 +12,7 @@ from ..db import get_session
 from ..invoices import attach_invoice, clear_invoice_metadata, invoice_storage_path, _supabase_delete, _supabase_signed_url, _use_supabase
 from ..models import Sale
 from ..schemas import Currency, SaleCreate, SaleRead
-from ..service import create_sale, get_sale, list_sales, sales_summary
+from ..service import create_sale, delete_sale, get_sale, list_sales, sales_summary
 
 router = APIRouter(prefix="/api/sales", tags=["sales"])
 
@@ -68,3 +68,9 @@ async def delete_invoice(sale_id: uuid.UUID, session: AsyncSession = Depends(get
 @router.get("/{sale_id}", response_model=SaleRead)
 async def get_sale_detail(sale_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> Sale:
     return await get_sale(session, sale_id)
+
+
+@router.delete("/{sale_id}", status_code=204)
+async def delete_sale_endpoint(sale_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> Response:
+    await delete_sale(session, sale_id)
+    return Response(status_code=204)

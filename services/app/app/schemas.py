@@ -124,24 +124,35 @@ class SaleItemCreate(BaseModel):
     product_id: uuid.UUID
     quantity: int = Field(gt=0, le=1_000_000)
     unit_price: Optional[float] = Field(default=None, ge=0)
+    imei: str = Field(min_length=1, max_length=64)
 
 
 class SaleCreate(BaseModel):
     items: list[SaleItemCreate] = Field(min_length=1, max_length=50)
     payment_method: PaymentMethod = "cash"
     currency: Currency = "USD"
-    customer_name: Optional[str] = Field(default=None, max_length=120)
-    vendedor: Optional[str] = Field(default=None, max_length=120)
+    customer_name: str = Field(min_length=1, max_length=120)
+    vendedor: str = Field(min_length=1, max_length=120)
     note: Optional[str] = Field(default=None, max_length=500)
     idempotency_key: Optional[str] = Field(default=None, max_length=120)
 
-    @field_validator("customer_name", "note", "idempotency_key", "vendedor")
+    @field_validator("note", "idempotency_key")
     @classmethod
     def _strip_optional(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
             return None
         value = value.strip()
         return value or None
+
+    @field_validator("customer_name", "vendedor")
+    @classmethod
+    def _strip_required(cls, value: str) -> str:
+        if value is None:
+            raise ValueError("field must not be blank")
+        value = value.strip()
+        if not value:
+            raise ValueError("field must not be blank")
+        return value
 
 
 class SaleItemRead(BaseModel):
@@ -153,6 +164,7 @@ class SaleItemRead(BaseModel):
     quantity: int
     unit_price: float
     line_total: float
+    imei: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

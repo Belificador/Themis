@@ -112,6 +112,11 @@ async def _complete_pending(session: AsyncSession, sale: Sale) -> Sale:
 
 
 async def create_sale(session: AsyncSession, payload: SaleCreate) -> Sale:
+    if not payload.customer_name or not payload.customer_name.strip():
+        raise HTTPException(status_code=400, detail="El cliente es obligatorio")
+    if not payload.vendedor or not payload.vendedor.strip():
+        raise HTTPException(status_code=400, detail="El vendedor es obligatorio")
+
     existing = await _by_key(session, payload.idempotency_key)
     if existing is not None and existing.status == "completed":
         return existing
@@ -123,6 +128,7 @@ async def create_sale(session: AsyncSession, payload: SaleCreate) -> Sale:
             merged[item.product_id] = {
                 "quantity": item.quantity,
                 "unit_price": _money(item.unit_price) if item.unit_price is not None else None,
+                "imei": item.imei,
             }
             continue
         if item.unit_price is not None and current["unit_price"] is not None and _money(item.unit_price) != current["unit_price"]:
@@ -167,6 +173,7 @@ async def create_sale(session: AsyncSession, payload: SaleCreate) -> Sale:
                 quantity=quantity,
                 unit_price=unit_price,
                 line_total=line_total,
+                imei=requested["imei"],
             )
         )
 
@@ -320,6 +327,32 @@ async def authenticate_user(
     if not user or not verify_password(password, user.password_hash):
         return None
     return user
+
+
+async def delete_sale(session: AsyncSession, sale_id: uuid.UUID) -> Sale:
+    sale = await _by_id(session, sale_id)
+    if sale is None:
+        raise HTTPException(status_code=404, detail="venta no encontrada")
+
+    # Restaurar stock de cada ítem
+    for item in sale.items:
+        stock_item = await session.get(StockItem, item.product_id)
+        if stock_item:
+            stock_item.quantity = int(stock_item.quantity) + int(item.quantity)
+            stock_item.updated_at = datetime.now(timezone.utc)
+
+    # Eliminar movimientos de stock asociados a esta venta
+    result = await session.execute(
+        select(StockMovement).where(
+            StockMovement.reference_id == str(sale.id)
+        )
+    )
+    for movement in result.scalars().all():
+        await session.delete(movement)
+
+    await session.delete(sale)
+    await session.commit()
+    return sale
 
 
 async def get_current_user(

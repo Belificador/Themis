@@ -33,23 +33,89 @@ class SaleNumberTests(unittest.TestCase):
 
 
 class SaleSchemaTests(unittest.TestCase):
+    def _base_payload(self):
+        return SaleCreate(
+            items=[
+                SaleItemCreate(
+                    product_id=uuid.uuid4(),
+                    quantity=1,
+                    imei="IMEI123456789",
+                )
+            ],
+            customer_name="Cliente Test",
+            vendedor="Vendedor Test",
+        )
+
     def test_vendedor_is_stripped(self) -> None:
+        payload = self._base_payload()
+        payload.vendedor = "  Ana Pérez  "
+        # Re-validar pasando de nuevo por el constructor con valor limpio
         payload = SaleCreate(
-            items=[SaleItemCreate(product_id=uuid.uuid4(), quantity=1)],
+            items=[
+                SaleItemCreate(
+                    product_id=uuid.uuid4(),
+                    quantity=1,
+                    imei="IMEI123456789",
+                )
+            ],
+            customer_name="Cliente Test",
             vendedor="  Ana Pérez  ",
         )
         self.assertEqual(payload.vendedor, "Ana Pérez")
 
-    def test_blank_vendedor_becomes_none(self) -> None:
-        payload = SaleCreate(
-            items=[SaleItemCreate(product_id=uuid.uuid4(), quantity=1)],
-            vendedor="   ",
-        )
-        self.assertIsNone(payload.vendedor)
+    def test_blank_vendedor_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            SaleCreate(
+                items=[
+                    SaleItemCreate(
+                        product_id=uuid.uuid4(),
+                        quantity=1,
+                        imei="IMEI123456789",
+                    )
+                ],
+                customer_name="Cliente Test",
+                vendedor="   ",
+            )
+
+    def test_blank_customer_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            SaleCreate(
+                items=[
+                    SaleItemCreate(
+                        product_id=uuid.uuid4(),
+                        quantity=1,
+                        imei="IMEI123456789",
+                    )
+                ],
+                customer_name="   ",
+                vendedor="Vendedor Test",
+            )
+
+    def test_imei_is_required(self) -> None:
+        with self.assertRaises(ValidationError):
+            SaleCreate(
+                items=[
+                    SaleItemCreate(
+                        product_id=uuid.uuid4(),
+                        quantity=1,
+                        imei="",
+                    )
+                ],
+                customer_name="Cliente Test",
+                vendedor="Vendedor Test",
+            )
 
     def test_cashea_payment_is_valid(self) -> None:
         payload = SaleCreate(
-            items=[SaleItemCreate(product_id=uuid.uuid4(), quantity=1)],
+            items=[
+                SaleItemCreate(
+                    product_id=uuid.uuid4(),
+                    quantity=1,
+                    imei="IMEI123456789",
+                )
+            ],
+            customer_name="Cliente Test",
+            vendedor="Vendedor Test",
             payment_method="cashea",
         )
         self.assertEqual(payload.payment_method, "cashea")
@@ -57,20 +123,34 @@ class SaleSchemaTests(unittest.TestCase):
     def test_unknown_payment_is_rejected(self) -> None:
         with self.assertRaises(ValidationError):
             SaleCreate(
-                items=[SaleItemCreate(product_id=uuid.uuid4(), quantity=1)],
+                items=[
+                    SaleItemCreate(
+                        product_id=uuid.uuid4(),
+                        quantity=1,
+                        imei="IMEI123456789",
+                    )
+                ],
+                customer_name="Cliente Test",
+                vendedor="Vendedor Test",
                 payment_method="bitcoin",
             )
 
     def test_default_currency_is_usd(self) -> None:
-        payload = SaleCreate(
-            items=[SaleItemCreate(product_id=uuid.uuid4(), quantity=1)],
-        )
+        payload = self._base_payload()
         self.assertEqual(payload.currency, "USD")
 
     def test_eur_currency_is_rejected(self) -> None:
         with self.assertRaises(ValidationError):
             SaleCreate(
-                items=[SaleItemCreate(product_id=uuid.uuid4(), quantity=1)],
+                items=[
+                    SaleItemCreate(
+                        product_id=uuid.uuid4(),
+                        quantity=1,
+                        imei="IMEI123456789",
+                    )
+                ],
+                customer_name="Cliente Test",
+                vendedor="Vendedor Test",
                 currency="EUR",
             )
 
