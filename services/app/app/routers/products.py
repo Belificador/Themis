@@ -163,7 +163,7 @@ async def upload_product_image(product_id: uuid.UUID, file: UploadFile = File(..
     old_storage_path = product.image_stored_name if _use_supabase() else None
     extension_final = IMAGE_TYPES[content_type]
 
-    if _use_supabase():
+    if _use_supabase() and settings.supabase_service_role_key:
         storage_path = _supabase_storage_path(product.id, extension_final)
         await _supabase_upload(storage_path, data, content_type)
         await _supabase_delete(old_storage_path)
@@ -175,17 +175,22 @@ async def upload_product_image(product_id: uuid.UUID, file: UploadFile = File(..
         await session.refresh(product)
         return product
 
+    # Fallback: guardar localmente en media_dir
     directory = Path(settings.media_dir) / "products" / str(product.id)
     directory.mkdir(parents=True, exist_ok=True)
     stored_name = f"{uuid.uuid4().hex}{extension_final}"
     path = directory / stored_name
     path.write_bytes(data)
 
-    old_path = Path(settings.media_dir) / "products" / str(product.id) / product.image_stored_name if product.image_stored_name else None
+    old_path = (
+        Path(settings.media_dir) / "products" / str(product.id) / product.image_stored_name
+        if product.image_stored_name
+        else None
+    )
     if old_path and old_path.exists() and old_path != path:
         old_path.unlink(missing_ok=True)
 
-    product.image_stored_name = stored_name
+    product.image_stored_name = str(path.relative_to(settings.media_dir))
     product.image_content_type = content_type
     product.image_size = len(data)
     product.image_updated_at = settings.now_venezuela()
@@ -200,7 +205,7 @@ async def get_product_image(product_id: uuid.UUID, session: AsyncSession = Depen
     if product is None:
         raise HTTPException(status_code=404, detail="product not found")
 
-    if _use_supabase() and product.image_stored_name:
+    if _use_supabase() and settings.supabase_service_role_key and product.image_stored_name:
         download_url = (
             f"{settings.supabase_url.rstrip('/')}/storage/v1/object/"
             f"{settings.supabase_bucket_product_images}/{product.image_stored_name}"
@@ -221,10 +226,19 @@ async def get_product_image(product_id: uuid.UUID, session: AsyncSession = Depen
                 detail="Error al obtener imagen de Supabase",
             )
 
-    path = Path(settings.media_dir) / "products" / str(product.id) / product.image_stored_name if product.image_stored_name else None
-    if path is None or not path.is_file():
-        raise HTTPException(status_code=404, detail="product image not found")
-    return FileResponse(path, media_type=product.image_content_type or "application/octet-stream", filename=path.name, content_disposition_type="inline", headers={"Cache-Control": "public, max-age=86400"})
+    # Servir desde almacenamiento local
+    if product.image_stored_name:
+        path = Path(settings.media_dir) / product.image_stored_name
+        if path.is_file():
+            return FileResponse(
+                path,
+                media_type=product.image_content_type or "application/octet-stream",
+                filename=path.name,
+                content_disposition_type="inline",
+                headers={"Cache-Control": "public, max-age=86400"},
+            )
+
+    raise HTTPException(status_code=404, detail="product image not found")
 
 
 @router.delete("/{product_id}/image", status_code=204)

@@ -50,13 +50,14 @@ def _valid_invoice(data: bytes, content_type: str) -> bool:
 
 
 async def _supabase_upload(storage_path: str, data: bytes, content_type: str) -> None:
-    if supabase_client:
-        await supabase_client.upload(
-            bucket=settings.supabase_bucket_invoices,
-            path=storage_path,
-            data=data,
-            content_type=content_type,
-        )
+    if not _use_supabase() or not settings.supabase_service_role_key:
+        raise ValueError("service_role_key is required for upload operations")
+    await supabase_client.upload(
+        bucket=settings.supabase_bucket_invoices,
+        path=storage_path,
+        data=data,
+        content_type=content_type,
+    )
 
 
 async def _supabase_delete(storage_path: Optional[str]) -> None:
@@ -75,11 +76,6 @@ async def _supabase_signed_url(storage_path: str, expires_in: int = 900) -> str:
 
 
 async def attach_invoice(sale: Sale, upload: UploadFile) -> None:
-    if not _use_supabase():
-        raise HTTPException(
-            status_code=503,
-            detail="invoice storage not configured (Supabase required)",
-        )
     content_type = (upload.content_type or "").lower()
     extension = INVOICE_TYPES.get(content_type)
     if extension is None:
@@ -91,13 +87,29 @@ async def attach_invoice(sale: Sale, upload: UploadFile) -> None:
     if not data or not _valid_invoice(data, content_type):
         raise HTTPException(status_code=400, detail="invalid invoice file")
 
-    old_storage_path = sale.invoice_stored_name if _use_supabase() else None
     storage_path = _supabase_storage_path(sale.id, extension)
-    await _supabase_upload(storage_path, data, content_type)
-    await _supabase_delete(old_storage_path)
+
+    if _use_supabase() and settings.supabase_service_role_key:
+        # Usar Supabase para almacenamiento
+        old_storage_path = sale.invoice_stored_name if _use_supabase() else None
+        await _supabase_upload(storage_path, data, content_type)
+        await _supabase_delete(old_storage_path)
+        sale.invoice_stored_name = storage_path
+    else:
+        # Guardar localmente en media_dir
+        directory = Path(settings.media_dir) / "invoices" / str(sale.id)
+        directory.mkdir(parents=True, exist_ok=True)
+        stored_name = f"{uuid.uuid4().hex}{extension}"
+        path = directory / stored_name
+        path.write_bytes(data)
+
+        old_path = Path(settings.media_dir) / "invoices" / str(sale.id) / sale.invoice_stored_name if sale.invoice_stored_name else None
+        if old_path and old_path.exists() and old_path != path:
+            old_path.unlink(missing_ok=True)
+
+        sale.invoice_stored_name = str(path.relative_to(settings.media_dir))
 
     original = Path(upload.filename or f"factura{extension}").name[:255]
-    sale.invoice_stored_name = storage_path
     sale.invoice_filename = original or f"factura{extension}"
     sale.invoice_content_type = content_type
     sale.invoice_size = len(data)

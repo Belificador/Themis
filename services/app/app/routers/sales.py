@@ -47,37 +47,49 @@ async def get_invoice_url(sale_id: uuid.UUID, session: AsyncSession = Depends(ge
     storage_path = invoice_storage_path(sale)
     if not storage_path:
         raise HTTPException(status_code=404, detail="invoice not found")
-    if not _use_supabase():
-        raise HTTPException(
-            status_code=503,
-            detail="invoice storage not configured (Supabase required)",
+    if _use_supabase() and settings.supabase_service_role_key and sale.invoice_stored_name:
+        download_url = (
+            f"{settings.supabase_url.rstrip('/')}/storage/v1/object/"
+            f"{settings.supabase_bucket_invoices}/{storage_path}"
         )
-    download_url = (
-        f"{settings.supabase_url.rstrip('/')}/storage/v1/object/"
-        f"{settings.supabase_bucket_invoices}/{storage_path}"
-    )
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(
-            download_url,
-            headers={"Authorization": f"Bearer {settings.supabase_service_role_key}"},
-        )
-        if resp.status_code == 200:
-            return Response(
-                content=resp.content,
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                download_url,
+                headers={"Authorization": f"Bearer {settings.supabase_service_role_key}"},
+            )
+            if resp.status_code == 200:
+                return Response(
+                    content=resp.content,
+                    media_type=sale.invoice_content_type or "application/octet-stream",
+                    headers={"Cache-Control": "public, max-age=86400"},
+                )
+            raise HTTPException(
+                status_code=resp.status_code,
+                detail="Error al obtener factura de Supabase",
+            )
+    # Servir desde almacenamiento local
+    if sale.invoice_stored_name:
+        path = Path(settings.media_dir) / sale.invoice_stored_name
+        if path.is_file():
+            return FileResponse(
+                path,
                 media_type=sale.invoice_content_type or "application/octet-stream",
+                filename=Path(path).name,
+                content_disposition_type="inline",
                 headers={"Cache-Control": "public, max-age=86400"},
             )
-        raise HTTPException(
-            status_code=resp.status_code,
-            detail="Error al obtener factura de Supabase",
-        )
+    raise HTTPException(status_code=404, detail="invoice not found")
 
 
 @router.delete("/{sale_id}/invoice", status_code=204)
 async def delete_invoice(sale_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> Response:
     sale = await get_sale(session, sale_id)
-    if _use_supabase() and sale.invoice_stored_name:
+    if _use_supabase() and settings.supabase_service_role_key and sale.invoice_stored_name:
         await _supabase_delete(sale.invoice_stored_name)
+    elif sale.invoice_stored_name:
+        path = Path(settings.media_dir) / sale.invoice_stored_name
+        if path.is_file():
+            path.unlink(missing_ok=True)
     clear_invoice_metadata(sale)
     await session.commit()
     return Response(status_code=204)

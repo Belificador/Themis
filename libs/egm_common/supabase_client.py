@@ -26,7 +26,7 @@ class SupabaseClient:
 
     def _service_headers(self) -> dict[str, str]:
         if not self.service_role_key:
-            raise RuntimeError("service_role key not configured")
+            return {}
         return {
             "apikey": self.service_role_key,
             "Authorization": f"Bearer {self.service_role_key}",
@@ -63,6 +63,10 @@ class SupabaseClient:
         upsert: bool = True,
     ) -> None:
         """Sube un objeto usando service_role (para buckets privados)."""
+        if not self.service_role_key:
+            raise ValueError(
+                "supabase_service_role_key is required for upload operations"
+            )
         url = f"{self.base_url}/storage/v1/object/{bucket}/{path}"
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.post(
