@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from egm_common.auth import create_access_token
@@ -9,15 +9,13 @@ from ..db import get_session
 from ..models import User
 from ..schemas import Token, UserLogin
 from ..service import authenticate_user, get_current_user
-from ..security import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=Token)
-@limiter.limit(settings.rate_limit_login)
 async def login(
-    payload: UserLogin, request: Request, session: AsyncSession = Depends(get_session)
+    payload: UserLogin, session: AsyncSession = Depends(get_session)
 ) -> Token:
     user = await authenticate_user(session, payload.username, payload.password)
     if not user:
