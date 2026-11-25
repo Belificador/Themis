@@ -30,6 +30,34 @@ export function Overview({
   const [recent, setRecent] = useState<Sale[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [exportingSales, setExportingSales] = useState(false)
+  const [exportingStock, setExportingStock] = useState(false)
+
+  const exportSalesExcel = async () => {
+    setExportingSales(true)
+    setError(null)
+    try {
+      const { url } = await api.exportSales()
+      window.open(url, '_blank')
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setExportingSales(false)
+    }
+  }
+
+  const exportStockExcel = async () => {
+    setExportingStock(true)
+    setError(null)
+    try {
+      const { url } = await api.exportStock()
+      window.open(url, '_blank')
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setExportingStock(false)
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -75,6 +103,43 @@ export function Overview({
           <span>{error}</span>
         </div>
       )}
+
+      <section className="export-section">
+        <div className="export-buttons">
+          <button
+            className="btn btn-primary"
+            onClick={exportSalesExcel}
+            disabled={exportingSales}
+          >
+            {exportingSales ? (
+              <span className="btn-loader">
+                <span className="spin" />
+                Exportando ventas…
+              </span>
+            ) : (
+              <span>
+                <Icon name="download" size={16} /> Exportar ventas a Excel
+              </span>
+            )}
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={exportStockExcel}
+            disabled={exportingStock}
+          >
+            {exportingStock ? (
+              <span className="btn-loader">
+                <span className="spin" />
+                Exportando stock…
+              </span>
+            ) : (
+              <span>
+                <Icon name="download" size={16} /> Exportar inventario a Excel
+              </span>
+            )}
+          </button>
+        </div>
+      </section>
 
       {data?.bcv_rates && (
         <div className="rates-bar">

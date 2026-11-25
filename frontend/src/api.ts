@@ -127,4 +127,6 @@ export const api = {
     }),
   invoiceUrl: (saleId: string) =>
     request<{ url: string }>(`/api/sales/${saleId}/invoice-url`),
+  exportSales: () => request<{ url: string; filename: string; count: number }>('/api/reports/export-sales'),
+  exportStock: () => request<{ url: string; filename: string; count: number }>('/api/reports/export-stock'),
 }

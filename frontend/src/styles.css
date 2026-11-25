@@ -3279,3 +3279,43 @@ select option.cashea-option {
     transform: rotate(360deg);
   }
 }
+
+/* ============================================================
+   Reportes / Exportación a Excel
+   ============================================================ */
+.export-section {
+  margin-bottom: 24px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.export-section .export-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.export-section .btn {
+  min-height: 46px;
+  padding: 0 20px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.export-section .btn-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-section .spin {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
