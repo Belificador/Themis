@@ -117,6 +117,13 @@ async def create_sale(session: AsyncSession, payload: SaleCreate) -> Sale:
     if not payload.vendedor or not payload.vendedor.strip():
         raise HTTPException(status_code=400, detail="El vendedor es obligatorio")
 
+    # Validar que los precios no sean negativos
+    for item in payload.items:
+        if item.unit_price is not None and item.unit_price < 0:
+            raise HTTPException(status_code=400, detail="El precio unitario no puede ser negativo")
+        if item.quantity <= 0:
+            raise HTTPException(status_code=400, detail="La cantidad debe ser mayor a 0")
+
     existing = await _by_key(session, payload.idempotency_key)
     if existing is not None and existing.status == "completed":
         return existing

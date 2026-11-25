@@ -35,6 +35,7 @@ export function StockDrawer({
     mode === 'set' ? String(row.quantity) : '1',
   )
   const [note, setNote] = useState('')
+  const [imei, setImei] = useState(row.imei || '')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [movements, setMovements] = useState<Movement[] | null>(null)
@@ -235,6 +236,16 @@ export function StockDrawer({
                   value={quantity}
                   onChange={(event) => setQuantity(event.target.value)}
                   autoFocus
+                />
+              </label>
+              <label className="field">
+                <span>IMEI (opcional)</span>
+                <input
+                  type="text"
+                  maxLength={64}
+                  value={imei}
+                  onChange={(event) => setImei(event.target.value)}
+                  placeholder="Número IMEI"
                 />
               </label>
 

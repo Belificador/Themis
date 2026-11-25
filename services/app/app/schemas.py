@@ -86,6 +86,7 @@ class StockItemRead(BaseModel):
     alert_state: str
     active: bool
     low_stock: bool
+    imei: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -112,6 +113,7 @@ class MovementCreate(BaseModel):
 class AdjustmentCreate(BaseModel):
     quantity: int = Field(ge=0)
     note: Optional[str] = Field(default=None, max_length=500)
+    imei: Optional[str] = Field(default=None, max_length=64)
 
 
 class BatchMovementCreate(BaseModel):

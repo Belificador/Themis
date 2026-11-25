@@ -26,6 +26,15 @@ class Settings(BaseSettings):
     cors_origins: str = ""
     # Regex opcional, p. ej. https://.*\.vercel\.app para previews.
     cors_origin_regex: str = ""
+    # Configuración de seguridad
+    secret_key: str = "change-me-in-production-change-me-in-production-change-me"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 24 * 7  # 7 días
+    # Rate limiting
+    rate_limit_login: str = "5/minute"
+    rate_limit_general: str = "100/minute"
+    # Hosts permitidos (para validar Host header)
+    allowed_hosts: str = "*"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -38,6 +47,7 @@ settings = Settings()
 
 # Zona horaria de Venezuela (America/Caracas = UTC-4, sin cambio de horario de verano)
 VENEZUELA_TZ = ZoneInfo("America/Caracas")
+
 
 def now_venezuela() -> datetime:
     """Retorna la fecha y hora actual en zona horaria de Venezuela."""

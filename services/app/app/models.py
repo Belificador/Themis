@@ -88,6 +88,7 @@ class StockItem(Base):
     sku: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     product_name: Mapped[str] = mapped_column(String(255), nullable=False)
     threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    imei: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     alert_state: Mapped[str] = mapped_column(
         String(20), nullable=False, default="normal"

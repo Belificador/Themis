@@ -16,6 +16,7 @@ from sqlalchemy import text
 from .config import settings
 from .db import Base, SessionLocal, engine
 from .routers import auth, dashboard, notifications, products, rates, reports, sales, stock
+from .security import SecurityHeadersMiddleware, RateLimitMiddleware, limiter, rate_limit_exceeded_handler
 from .service import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -56,6 +57,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Themis App", version="1.0.0", lifespan=lifespan)
 app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
+
+# Rate limiter state
+app.state.limiter = limiter
+app.add_exception_handler(429, rate_limit_exceeded_handler)
 
 if settings.cors_origins or settings.cors_origin_regex:
     origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
