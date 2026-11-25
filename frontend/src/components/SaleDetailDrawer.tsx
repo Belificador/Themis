@@ -3,6 +3,7 @@ import { api } from '../api'
 import { dateTime, money, paymentLabel, statusLabel } from '../format'
 import { Icon } from '../icons'
 import type { Sale } from '../types'
+import { InvoiceLightbox } from './InvoiceLightbox'
 
 function fileSize(bytes: number | null): string {
   if (!bytes) return '—'
@@ -26,6 +27,7 @@ export function SaleDetailDrawer({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [invoicePreviewUrl, setInvoicePreviewUrl] = useState<string | null>(null)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -80,6 +82,7 @@ export function SaleDetailDrawer({
       const updated = await api.uploadInvoice(current.id, file)
       setCurrent(updated)
       setFile(null)
+      setLightboxOpen(false)
       setInputKey((value) => value + 1)
       onChanged()
     } catch (err) {
@@ -103,6 +106,7 @@ export function SaleDetailDrawer({
         invoice_uploaded_at: null,
       })
       setFile(null)
+      setLightboxOpen(false)
       setInputKey((value) => value + 1)
       onChanged()
     } catch (err) {
@@ -206,9 +210,19 @@ export function SaleDetailDrawer({
                 </div>
                 {isImage ? (
                   <img
-                    className="invoice-preview"
+                    className="invoice-preview invoice-preview-clickable"
                     src={preview}
                     alt="Factura fiscal"
+                    role="button"
+                    tabIndex={0}
+                    title="Ampliar factura"
+                    onClick={() => setLightboxOpen(true)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setLightboxOpen(true)
+                      }
+                    }}
                   />
                 ) : (
                   <iframe
@@ -218,9 +232,18 @@ export function SaleDetailDrawer({
                   />
                 )}
                 <div className="row-actions">
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    type="button"
+                    onClick={() => setLightboxOpen(true)}
+                  >
+                    <Icon name="eye" size={15} />
+                    Ampliar
+                  </button>
                   <a
                     className="btn btn-ghost btn-sm"
                     href={preview ?? undefined}
+                    download={current.invoice_filename ?? undefined}
                   >
                     Descargar
                   </a>
@@ -289,6 +312,14 @@ export function SaleDetailDrawer({
           </button>
         </footer>
       </aside>
+
+      <InvoiceLightbox
+        open={lightboxOpen}
+        url={preview}
+        filename={current.invoice_filename}
+        isImage={Boolean(isImage)}
+        onClose={() => setLightboxOpen(false)}
+      />
     </div>
   )
 }

@@ -11,6 +11,7 @@ import {
 import { Icon } from '../icons'
 import casheaLogo from '../assets/cashea-logo.png'
 import type { DashboardRow, PaymentMethod, Sale } from '../types'
+import { InvoiceLightbox } from './InvoiceLightbox'
 
 interface Line {
   row: DashboardRow
@@ -79,6 +80,7 @@ export function SaleDrawer({
   const [invoiceBusy, setInvoiceBusy] = useState(false)
   const [invoiceError, setInvoiceError] = useState<string | null>(null)
   const [receiptInvoiceUrl, setReceiptInvoiceUrl] = useState<string | null>(null)
+  const [receiptLightboxOpen, setReceiptLightboxOpen] = useState(false)
 
   const defaultUnitPrice = (row: DashboardRow) =>
     payment === 'cashea' ? casheaPrice(row) : productPrice(row)
@@ -315,6 +317,7 @@ export function SaleDrawer({
     setError(null)
     setInvoiceFile(null)
     setInvoiceError(null)
+    setReceiptLightboxOpen(false)
     setInvoiceInputKey((value) => value + 1)
     setKey(makeKey())
     void refreshProducts()
@@ -328,6 +331,7 @@ export function SaleDrawer({
       const updated = await api.uploadInvoice(receipt.id, invoiceFile)
       setReceipt(updated)
       setInvoiceFile(null)
+      setReceiptLightboxOpen(false)
       setInvoiceInputKey((value) => value + 1)
       onDone()
     } catch (err) {
@@ -435,20 +439,38 @@ export function SaleDrawer({
               <div className="form-section">
                 <h3>Factura fiscal (opcional)</h3>
                 {receipt.invoice_uploaded_at && receiptInvoiceUrl ? (
-                  <div className="invoice-meta">
-                    <span>
-                      <Icon name="receipt" size={16} />
-                      {receipt.invoice_filename ?? 'Factura adjunta'}
-                    </span>
-                    <a
-                      className="link-btn"
-                      href={receiptInvoiceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Ver factura
-                    </a>
-                  </div>
+                  <>
+                    <div className="invoice-meta">
+                      <span>
+                        <Icon name="receipt" size={16} />
+                        {receipt.invoice_filename ?? 'Factura adjunta'}
+                      </span>
+                      <button
+                        className="link-btn"
+                        type="button"
+                        onClick={() => setReceiptLightboxOpen(true)}
+                      >
+                        Ver factura
+                      </button>
+                    </div>
+                    {receipt.invoice_content_type?.startsWith('image/') && (
+                      <img
+                        className="invoice-preview invoice-preview-clickable"
+                        src={receiptInvoiceUrl}
+                        alt="Factura fiscal"
+                        role="button"
+                        tabIndex={0}
+                        title="Ampliar factura"
+                        onClick={() => setReceiptLightboxOpen(true)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            setReceiptLightboxOpen(true)
+                          }
+                        }}
+                      />
+                    )}
+                  </>
                 ) : (
                   <p className="muted small">
                     Puedes adjuntarla ahora o más tarde desde el historial.
@@ -740,6 +762,14 @@ export function SaleDrawer({
           </form>
         )}
       </aside>
+
+      <InvoiceLightbox
+        open={receiptLightboxOpen}
+        url={receiptInvoiceUrl}
+        filename={receipt?.invoice_filename}
+        isImage={Boolean(receipt?.invoice_content_type?.startsWith('image/'))}
+        onClose={() => setReceiptLightboxOpen(false)}
+      />
     </div>
   )
 }
