@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -153,7 +153,7 @@ async def export_sales(session: AsyncSession = Depends(get_session)):
         raise HTTPException(status_code=404, detail="No hay ventas para exportar")
 
     file_bytes = _build_sales_excel(sales)
-    filename = f"ventas_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.xlsx"
+    filename = f"ventas_{settings.now_venezuela().strftime('%Y%m%d_%H%M%S')}.xlsx"
 
     return StreamingResponse(
         io.BytesIO(file_bytes),
@@ -174,7 +174,7 @@ async def export_stock(session: AsyncSession = Depends(get_session)):
         raise HTTPException(status_code=404, detail="No hay productos para exportar")
 
     file_bytes = _build_stock_excel(products, stock_items)
-    filename = f"stock_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.xlsx"
+    filename = f"stock_{settings.now_venezuela().strftime('%Y%m%d_%H%M%S')}.xlsx"
 
     return StreamingResponse(
         io.BytesIO(file_bytes),

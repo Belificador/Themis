@@ -18,11 +18,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from .config import settings, now_venezuela
 from .db import Base
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return now_venezuela()
 
 
 class Product(Base):

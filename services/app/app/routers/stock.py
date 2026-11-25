@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..alerts import record_stock_alert
+from ..config import settings
 from ..db import get_session
 from ..models import StockItem, StockMovement
 from ..schemas import (
@@ -53,7 +54,7 @@ async def _apply_movement(
 
     delta = after - before
     item.quantity = after
-    item.updated_at = datetime.now(timezone.utc)
+    item.updated_at = settings.now_venezuela()
 
     session.add(
         StockMovement(

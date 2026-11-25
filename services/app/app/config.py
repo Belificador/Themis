@@ -1,4 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 
 class Settings(BaseSettings):
@@ -29,3 +31,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Zona horaria de Venezuela (America/Caracas = UTC-4, sin cambio de horario de verano)
+VENEZUELA_TZ = ZoneInfo("America/Caracas")
+
+
+def now_venezuela() -> datetime:
+    """Retorna la fecha y hora actual en zona horaria de Venezuela."""
+    return datetime.now(VENEZUELA_TZ)

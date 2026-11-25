@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -170,7 +170,7 @@ async def upload_product_image(product_id: uuid.UUID, file: UploadFile = File(..
         product.image_stored_name = storage_path
         product.image_content_type = content_type
         product.image_size = len(data)
-        product.image_updated_at = datetime.now(timezone.utc)
+        product.image_updated_at = settings.now_venezuela()
         await session.commit()
         await session.refresh(product)
         return product
@@ -188,7 +188,7 @@ async def upload_product_image(product_id: uuid.UUID, file: UploadFile = File(..
     product.image_stored_name = stored_name
     product.image_content_type = content_type
     product.image_size = len(data)
-    product.image_updated_at = datetime.now(timezone.utc)
+    product.image_updated_at = settings.now_venezuela()
     await session.commit()
     await session.refresh(product)
     return product

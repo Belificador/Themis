@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .config import settings
 from .models import NotificationLog, StockItem
 
 CHANNELS = ("telegram", "whatsapp")
@@ -40,7 +41,7 @@ def record_stock_alert(
         return
 
     event_type = "stock.depleted" if new_state == "depleted" else "stock.low"
-    now = datetime.now(timezone.utc)
+    now = settings.now_venezuela()
     event_id = f"{event_type}-{item.product_id}-{uuid.uuid4()}"
 
     for channel in CHANNELS:

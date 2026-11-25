@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections import defaultdict
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Optional
 
@@ -78,7 +78,7 @@ async def _send_stock_exit(session: AsyncSession, sale: Sale) -> None:
                 detail=f"insufficient stock for {stock_item.sku}: current={stock_item.quantity}, requested={item.quantity}",
             )
         stock_item.quantity -= item.quantity
-        stock_item.updated_at = datetime.now(timezone.utc)
+        stock_item.updated_at = settings.now_venezuela()
         quantity_before = stock_item.quantity + item.quantity
 
         session.add(
@@ -147,7 +147,7 @@ async def create_sale(session: AsyncSession, payload: SaleCreate) -> Sale:
     currency = payload.currency
 
     sale_id = uuid.uuid4()
-    created_at = datetime.now(timezone.utc)
+    created_at = settings.now_venezuela()
     currency_total = Decimal("0")
     items: list[SaleItem] = []
 
@@ -235,7 +235,7 @@ async def get_sale(session: AsyncSession, sale_id: uuid.UUID) -> Sale:
 def _as_date(value: datetime) -> date:
     if value.tzinfo is None:
         return value.date()
-    return value.astimezone(timezone.utc).date()
+    return value.astimezone(settings.VENEZUELA_TZ).date()
 
 
 def _period(sales: list[Sale]) -> dict[str, float]:
@@ -258,7 +258,7 @@ async def sales_summary(session: AsyncSession, currency: str = "USD") -> dict[st
     )
     sales = list(result.scalars().all())
 
-    now = datetime.now(timezone.utc)
+    now = settings.now_venezuela()
     today = now.date()
     month_start = today.replace(day=1)
 
@@ -339,7 +339,7 @@ async def delete_sale(session: AsyncSession, sale_id: uuid.UUID) -> Sale:
         stock_item = await session.get(StockItem, item.product_id)
         if stock_item:
             stock_item.quantity = int(stock_item.quantity) + int(item.quantity)
-            stock_item.updated_at = datetime.now(timezone.utc)
+            stock_item.updated_at = settings.now_venezuela()
 
     # Eliminar movimientos de stock asociados a esta venta
     result = await session.execute(

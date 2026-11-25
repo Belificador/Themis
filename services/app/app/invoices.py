@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -101,7 +101,7 @@ async def attach_invoice(sale: Sale, upload: UploadFile) -> None:
     sale.invoice_filename = original or f"factura{extension}"
     sale.invoice_content_type = content_type
     sale.invoice_size = len(data)
-    sale.invoice_uploaded_at = datetime.now(timezone.utc)
+    sale.invoice_uploaded_at = settings.now_venezuela()
 
 
 def clear_invoice_metadata(sale: Sale) -> None:
