@@ -21,7 +21,7 @@ from sqlalchemy import select
 
 from .alerts import record_stock_alert
 from egm_common.auth import verify_password, decode_token, create_access_token
-from .config import settings
+from .config import settings, VENEZUELA_TZ
 from .db import get_session
 from .models import Product, Sale, SaleItem, StockItem, StockMovement, User
 from .schemas import SaleCreate
@@ -235,7 +235,7 @@ async def get_sale(session: AsyncSession, sale_id: uuid.UUID) -> Sale:
 def _as_date(value: datetime) -> date:
     if value.tzinfo is None:
         return value.date()
-    return value.astimezone(settings.VENEZUELA_TZ).date()
+    return value.astimezone(VENEZUELA_TZ).date()
 
 
 def _period(sales: list[Sale]) -> dict[str, float]:
