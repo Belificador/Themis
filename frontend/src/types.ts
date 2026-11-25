@@ -54,6 +54,7 @@ export interface DashboardRow extends Product {
   active: boolean
   stock_synced: boolean
   price_bcv_effective_usd: number
+  imei: string | null
 }
 
 export interface DashboardTotals {
@@ -157,6 +158,7 @@ export interface SaleInputItem {
   product_id: string
   quantity: number
   unit_price?: number
+  imei?: string
 }
 
 export interface SaleInput {
