@@ -33,12 +33,17 @@ export function Overview({
   const [exportingSales, setExportingSales] = useState(false)
   const [exportingStock, setExportingStock] = useState(false)
 
+  const WHATSAPP_NUMBER = '584125663647'
+
   const exportSalesExcel = async () => {
     setExportingSales(true)
     setError(null)
     try {
-      const { url } = await api.exportSales()
+      const { url, filename } = await api.exportSales()
+      const message = `*Themis - Reporte de Ventas*\n\n📁 Archivo: ${filename}\n🔗 Descarga: ${url}\n📅 Fecha: ${new Date().toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}\n\nGenerado desde Themis App`
+      const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
       window.open(url, '_blank')
+      setTimeout(() => window.open(waUrl, '_blank'), 1000)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -50,8 +55,11 @@ export function Overview({
     setExportingStock(true)
     setError(null)
     try {
-      const { url } = await api.exportStock()
+      const { url, filename } = await api.exportStock()
+      const message = `*Themis - Reporte de Inventario*\n\n📁 Archivo: ${filename}\n🔗 Descarga: ${url}\n📅 Fecha: ${new Date().toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}\n\nGenerado desde Themis App`
+      const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
       window.open(url, '_blank')
+      setTimeout(() => window.open(waUrl, '_blank'), 1000)
     } catch (err) {
       setError((err as Error).message)
     } finally {
