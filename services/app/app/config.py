@@ -29,13 +29,12 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    def now_venezuela(self) -> datetime:
+        """Retorna la fecha y hora actual en zona horaria de Venezuela."""
+        return datetime.now(VENEZUELA_TZ)
+
 
 settings = Settings()
 
 # Zona horaria de Venezuela (America/Caracas = UTC-4, sin cambio de horario de verano)
 VENEZUELA_TZ = ZoneInfo("America/Caracas")
-
-
-def now_venezuela() -> datetime:
-    """Retorna la fecha y hora actual en zona horaria de Venezuela."""
-    return datetime.now(VENEZUELA_TZ)
