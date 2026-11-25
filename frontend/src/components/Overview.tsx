@@ -33,8 +33,6 @@ export function Overview({
   const [exportingSales, setExportingSales] = useState(false)
   const [exportingStock, setExportingStock] = useState(false)
 
-  const WHATSAPP_NUMBER = '584125663647'
-
   const exportSalesExcel = async () => {
     setExportingSales(true)
     setError(null)
@@ -50,10 +48,6 @@ export function Overview({
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-
-      const message = `*Themis - Reporte de Ventas*\n\n📁 Reporte de ventas generado\n📅 Fecha: ${new Date().toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}\n\nDescarga el archivo adjunto y envíalo por WhatsApp al +58 4125663647.`
-      const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
-      setTimeout(() => window.open(waUrl, '_blank'), 1000)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -76,10 +70,6 @@ export function Overview({
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-
-      const message = `*Themis - Reporte de Inventario*\n\n📁 Reporte de inventario generado\n📅 Fecha: ${new Date().toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}\n\nDescarga el archivo adjunto y envíalo por WhatsApp al +58 4125663647.`
-      const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
-      setTimeout(() => window.open(waUrl, '_blank'), 1000)
     } catch (err) {
       setError((err as Error).message)
     } finally {

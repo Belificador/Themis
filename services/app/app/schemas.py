@@ -124,7 +124,7 @@ class SaleItemCreate(BaseModel):
     product_id: uuid.UUID
     quantity: int = Field(gt=0, le=1_000_000)
     unit_price: Optional[float] = Field(default=None, ge=0)
-    imei: str = Field(min_length=1, max_length=64)
+    imei: Optional[str] = Field(default=None, max_length=64)
 
 
 class SaleCreate(BaseModel):

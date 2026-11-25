@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +42,7 @@ async def upload_invoice(sale_id: uuid.UUID, file: UploadFile = File(...), sessi
 
 
 @router.get("/{sale_id}/invoice-url")
-async def get_invoice_url(sale_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> dict:
+async def get_invoice_url(sale_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
     sale = await get_sale(session, sale_id)
     storage_path = invoice_storage_path(sale)
     if not storage_path:
@@ -51,8 +52,25 @@ async def get_invoice_url(sale_id: uuid.UUID, session: AsyncSession = Depends(ge
             status_code=503,
             detail="invoice storage not configured (Supabase required)",
         )
-    signed = await _supabase_signed_url(storage_path)
-    return {"url": signed}
+    download_url = (
+        f"{settings.supabase_url.rstrip('/')}/storage/v1/object/"
+        f"{settings.supabase_bucket_invoices}/{storage_path}"
+    )
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(
+            download_url,
+            headers={"Authorization": f"Bearer {settings.supabase_service_role_key}"},
+        )
+        if resp.status_code == 200:
+            return Response(
+                content=resp.content,
+                media_type=sale.invoice_content_type or "application/octet-stream",
+                headers={"Cache-Control": "public, max-age=86400"},
+            )
+        raise HTTPException(
+            status_code=resp.status_code,
+            detail="Error al obtener factura de Supabase",
+        )
 
 
 @router.delete("/{sale_id}/invoice", status_code=204)

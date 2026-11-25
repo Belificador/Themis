@@ -268,10 +268,6 @@ export function SaleDrawer({
         setError('Los precios no pueden ser negativos.')
         return
       }
-      if (!line.imei.trim()) {
-        setError(`El IMEI es obligatorio para ${line.row.product_name}.`)
-        return
-      }
     }
 
     setBusy(true)
