@@ -105,9 +105,36 @@ class StockMovementRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class StockUnitRead(BaseModel):
+    id: uuid.UUID
+    product_id: uuid.UUID
+    imei: str
+    status: str
+    sale_id: Optional[uuid.UUID] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class MovementCreate(BaseModel):
     quantity: int = Field(gt=0)
     note: Optional[str] = Field(default=None, max_length=500)
+    imeis: list[str] = Field(default_factory=list, max_length=200)
+
+    @field_validator("imeis")
+    @classmethod
+    def _clean_imeis(cls, value: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        for raw in value:
+            imei = raw.strip()
+            if not imei:
+                continue
+            if len(imei) > 64:
+                raise ValueError("IMEI demasiado largo")
+            if imei in cleaned:
+                raise ValueError(f"IMEI duplicado: {imei}")
+            cleaned.append(imei)
+        return cleaned
 
 
 class AdjustmentCreate(BaseModel):
@@ -127,6 +154,22 @@ class SaleItemCreate(BaseModel):
     quantity: int = Field(gt=0, le=1_000_000)
     unit_price: Optional[float] = Field(default=None, ge=0)
     imei: Optional[str] = Field(default=None, max_length=64)
+    imeis: list[str] = Field(default_factory=list, max_length=200)
+
+    @field_validator("imeis")
+    @classmethod
+    def _clean_imeis(cls, value: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        for raw in value:
+            imei = raw.strip()
+            if not imei:
+                continue
+            if len(imei) > 64:
+                raise ValueError("IMEI demasiado largo")
+            if imei in cleaned:
+                raise ValueError(f"IMEI duplicado: {imei}")
+            cleaned.append(imei)
+        return cleaned
 
 
 class SaleCreate(BaseModel):

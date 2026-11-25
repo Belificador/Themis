@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 from ..db import get_session
-from ..models import Product, StockItem
+from ..models import Product, StockItem, StockMovement, StockUnit
 from ..schemas import ProductCreate, ProductRead, ProductUpdate
 
 router = APIRouter(prefix="/api/catalog/products", tags=["products"])
@@ -239,6 +239,40 @@ async def get_product_image(product_id: uuid.UUID, session: AsyncSession = Depen
             )
 
     raise HTTPException(status_code=404, detail="product image not found")
+
+
+@router.delete("/{product_id}", status_code=204)
+async def delete_product(
+    product_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+) -> Response:
+    product = await session.get(Product, product_id)
+    if product is None:
+        raise HTTPException(status_code=404, detail="product not found")
+
+    if not _use_supabase() and product.image_stored_name:
+        local_path = Path(settings.media_dir) / product.image_stored_name
+        local_path.unlink(missing_ok=True)
+    await _delete_image_file(product)
+
+    units = await session.execute(
+        select(StockUnit).where(StockUnit.product_id == product_id)
+    )
+    for unit in units.scalars().all():
+        await session.delete(unit)
+
+    movements = await session.execute(
+        select(StockMovement).where(StockMovement.product_id == product_id)
+    )
+    for movement in movements.scalars().all():
+        await session.delete(movement)
+
+    stock_item = await session.get(StockItem, product_id)
+    if stock_item is not None:
+        await session.delete(stock_item)
+
+    await session.delete(product)
+    await session.commit()
+    return Response(status_code=204)
 
 
 @router.delete("/{product_id}/image", status_code=204)

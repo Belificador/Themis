@@ -9,6 +9,7 @@ import type {
   Sale,
   SaleInput,
   SalesSummary,
+  StockUnit,
   TestResult,
   Token,
   UserLogin,
@@ -45,6 +46,16 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   return (await response.json()) as T
 }
 
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () =>
+      reject(reader.error ?? new Error('No se pudo leer la factura'))
+    reader.readAsDataURL(blob)
+  })
+}
+
 export const api = {
   dashboard: () => request<DashboardResponse>('/api/dashboard'),
   login: (payload: UserLogin) =>
@@ -75,11 +86,26 @@ export const api = {
     request<void>(`/api/catalog/products/${productId}/image`, {
       method: 'DELETE',
     }),
-  addEntry: (productId: string, quantity: number, note: string) =>
+  deleteProduct: (productId: string) =>
+    request<void>(`/api/catalog/products/${productId}`, {
+      method: 'DELETE',
+    }),
+  addEntry: (
+    productId: string,
+    quantity: number,
+    note: string,
+    imeis: string[] = [],
+  ) =>
     request(`/api/inventory/stock/${productId}/entries`, {
       method: 'POST',
-      body: JSON.stringify({ quantity, note: note || null }),
+      body: JSON.stringify({ quantity, note: note || null, imeis }),
     }),
+  stockUnits: (productId: string, status?: 'available' | 'sold') =>
+    request<StockUnit[]>(
+      `/api/inventory/stock/${productId}/units${
+        status ? `?status=${status}` : ''
+      }`,
+    ),
   addExit: (productId: string, quantity: number, note: string) =>
     request(`/api/inventory/stock/${productId}/exits`, {
       method: 'POST',
@@ -133,8 +159,13 @@ export const api = {
     if (!response.ok) {
       throw new Error(`${response.status} ${response.statusText}`)
     }
+    const type =
+      response.headers.get('content-type') ?? 'application/octet-stream'
     const blob = await response.blob()
-    return { url: URL.createObjectURL(blob) }
+    if (type.startsWith('image/')) {
+      return { url: await blobToDataUrl(blob), revoke: false }
+    }
+    return { url: URL.createObjectURL(blob), revoke: true }
   },
   exportSales: () => {
     const token = localStorage.getItem('themis-token')

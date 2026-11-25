@@ -46,6 +46,7 @@ export function Inventory({
     row: DashboardRow
     mode: StockMode
   } | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -81,6 +82,26 @@ export function Inventory({
         .includes(query)
     })
   }, [data, search, category, status])
+
+  const removeProduct = async (row: DashboardRow) => {
+    if (
+      !window.confirm(
+        `¿Eliminar "${row.product_name}" del inventario? Esta acción no se puede deshacer.`,
+      )
+    ) {
+      return
+    }
+    setDeletingId(row.id)
+    try {
+      await api.deleteProduct(row.id)
+      onChanged()
+      onToast('Producto eliminado del inventario.')
+    } catch (err) {
+      onToast(`No se pudo eliminar: ${(err as Error).message}`)
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const totals = data?.totals[0]
   const outOfStock = (data?.products ?? []).filter(
@@ -279,6 +300,15 @@ export function Inventory({
                             aria-label="Editar producto"
                           >
                             <Icon name="edit" size={15} />
+                          </button>
+                          <button
+                            className="icon-btn small danger"
+                            onClick={() => removeProduct(row)}
+                            disabled={deletingId === row.id}
+                            title="Eliminar producto"
+                            aria-label="Eliminar producto"
+                          >
+                            <Icon name="trash" size={15} />
                           </button>
                         </div>
                       </td>

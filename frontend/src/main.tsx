@@ -5,7 +5,10 @@ import './styles.css'
 import { registerSW } from 'virtual:pwa-register'
 
 const updateSW = registerSW({
-  onNeedRefresh() {},
+  immediate: true,
+  onNeedRefresh() {
+    updateSW(true)
+  },
   onOfflineReady() {},
 })
 

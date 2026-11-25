@@ -11,13 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..alerts import record_stock_alert
 from ..config import settings
 from ..db import get_session
-from ..models import StockItem, StockMovement
+from ..models import StockItem, StockMovement, StockUnit
 from ..schemas import (
     AdjustmentCreate,
     BatchMovementCreate,
     MovementCreate,
     StockItemRead,
     StockMovementRead,
+    StockUnitRead,
 )
 
 router = APIRouter(prefix="/api/inventory/stock", tags=["stock"])
@@ -75,6 +76,42 @@ async def _apply_movement(
         quantity_after=after,
         correlation_id=correlation_id,
     )
+
+
+async def _register_units(
+    session: AsyncSession, product_id: uuid.UUID, imeis: list[str]
+) -> None:
+    if not imeis:
+        return
+    existing = await session.execute(
+        select(StockUnit.imei).where(
+            StockUnit.product_id == product_id, StockUnit.imei.in_(imeis)
+        )
+    )
+    taken = set(existing.scalars().all())
+    if taken:
+        raise HTTPException(
+            status_code=409,
+            detail=f"IMEI ya registrado: {', '.join(sorted(taken))}",
+        )
+    for imei in imeis:
+        session.add(
+            StockUnit(product_id=product_id, imei=imei, status="available")
+        )
+
+
+@router.get("/{product_id}/units", response_model=list[StockUnitRead])
+async def list_units(
+    product_id: uuid.UUID,
+    status: Optional[str] = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> list[StockUnit]:
+    stmt = select(StockUnit).where(StockUnit.product_id == product_id)
+    if status:
+        stmt = stmt.where(StockUnit.status == status)
+    stmt = stmt.order_by(StockUnit.created_at.asc())
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
 
 
 @router.get("", response_model=list[StockItemRead])
@@ -161,6 +198,7 @@ async def batch_entries(
             reference_id=payload.reference_id,
             correlation_id=correlation_id,
         )
+        await _register_units(session, requested.product_id, requested.imeis)
     await session.commit()
     refreshed = []
     for pid in product_ids:
@@ -217,6 +255,7 @@ async def add_entry(
         note=payload.note,
         correlation_id=_correlation_id(request),
     )
+    await _register_units(session, product_id, payload.imeis)
     await session.commit()
     await session.refresh(item)
     return item

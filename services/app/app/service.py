@@ -23,7 +23,15 @@ from .alerts import record_stock_alert
 from egm_common.auth import verify_password, decode_token, create_access_token
 from .config import settings, VENEZUELA_TZ
 from .db import get_session
-from .models import Product, Sale, SaleItem, StockItem, StockMovement, User
+from .models import (
+    Product,
+    Sale,
+    SaleItem,
+    StockItem,
+    StockMovement,
+    StockUnit,
+    User,
+)
 from .schemas import SaleCreate
 
 logger = logging.getLogger(__name__)
@@ -65,7 +73,52 @@ async def _by_key(session: AsyncSession, idempotency_key: Optional[str]) -> Opti
     return result.scalar_one_or_none()
 
 
-async def _send_stock_exit(session: AsyncSession, sale: Sale) -> None:
+def _split_imeis(value: Optional[str]) -> list[str]:
+    if not value:
+        return []
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
+def _join_imeis(imeis: list[str]) -> Optional[str]:
+    joined = ""
+    for imei in imeis:
+        candidate = f"{joined}, {imei}" if joined else imei
+        if len(candidate) > 64:
+            break
+        joined = candidate
+    return joined or None
+
+
+async def _mark_units_sold(
+    session: AsyncSession, sale: Sale, item: SaleItem, imeis: list[str]
+) -> None:
+    if not imeis:
+        return
+    result = await session.execute(
+        select(StockUnit).where(
+            StockUnit.product_id == item.product_id,
+            StockUnit.imei.in_(imeis),
+        )
+    )
+    units = {unit.imei: unit for unit in result.scalars().all()}
+    for imei in imeis:
+        unit = units.get(imei)
+        if unit is None:
+            continue
+        if unit.status != "available":
+            raise HTTPException(
+                status_code=409, detail=f"IMEI {imei} no está disponible"
+            )
+        unit.status = "sold"
+        unit.sale_id = sale.id
+        unit.updated_at = settings.now_venezuela()
+
+
+async def _send_stock_exit(
+    session: AsyncSession,
+    sale: Sale,
+    imeis_by_product: Optional[dict[uuid.UUID, list[str]]] = None,
+) -> None:
     for item in sale.items:
         stock_item = await session.get(StockItem, item.product_id)
         if not stock_item:
@@ -98,12 +151,22 @@ async def _send_stock_exit(session: AsyncSession, sale: Sale) -> None:
             quantity_before=quantity_before,
             quantity_after=stock_item.quantity,
         )
+        item_imeis = (
+            imeis_by_product.get(item.product_id)
+            if imeis_by_product is not None
+            else None
+        ) or _split_imeis(item.imei)
+        await _mark_units_sold(session, sale, item, item_imeis)
 
 
-async def _complete_pending(session: AsyncSession, sale: Sale) -> Sale:
+async def _complete_pending(
+    session: AsyncSession,
+    sale: Sale,
+    imeis_by_product: Optional[dict[uuid.UUID, list[str]]] = None,
+) -> Sale:
     if sale.status == "completed":
         return sale
-    await _send_stock_exit(session, sale)
+    await _send_stock_exit(session, sale, imeis_by_product)
     sale.status = "completed"
     await session.commit()
     loaded = await _by_id(session, sale.id)
@@ -125,22 +188,31 @@ async def create_sale(session: AsyncSession, payload: SaleCreate) -> Sale:
             raise HTTPException(status_code=400, detail="La cantidad debe ser mayor a 0")
 
     existing = await _by_key(session, payload.idempotency_key)
-    if existing is not None and existing.status == "completed":
-        return existing
+    if existing is not None:
+        if existing.status == "completed":
+            return existing
+        # Un intento anterior quedó pendiente (por ejemplo, un IMEI no
+        # disponible). Se descarta para no reutilizar datos obsoletos.
+        await session.delete(existing)
+        await session.commit()
 
     merged: dict[uuid.UUID, dict[str, Any]] = {}
     for item in payload.items:
         current = merged.get(item.product_id)
+        incoming_imeis = list(item.imeis) or ([item.imei] if item.imei else [])
         if current is None:
             merged[item.product_id] = {
                 "quantity": item.quantity,
                 "unit_price": _money(item.unit_price) if item.unit_price is not None else None,
-                "imei": item.imei,
+                "imeis": incoming_imeis,
             }
             continue
         if item.unit_price is not None and current["unit_price"] is not None and _money(item.unit_price) != current["unit_price"]:
             raise HTTPException(status_code=400, detail="duplicate product with different unit_price")
         current["quantity"] += item.quantity
+        current["imeis"].extend(
+            imei for imei in incoming_imeis if imei not in current["imeis"]
+        )
         if item.unit_price is not None:
             current["unit_price"] = _money(item.unit_price)
 
@@ -150,6 +222,25 @@ async def create_sale(session: AsyncSession, payload: SaleCreate) -> Sale:
         if not snapshot:
             raise HTTPException(status_code=404, detail=f"product not found: {product_id}")
         snapshots[product_id] = snapshot
+
+    for product_id, requested in merged.items():
+        imeis = requested["imeis"]
+        if not imeis:
+            continue
+        result = await session.execute(
+            select(StockUnit).where(
+                StockUnit.product_id == product_id,
+                StockUnit.imei.in_(imeis),
+            )
+        )
+        units = {unit.imei: unit for unit in result.scalars().all()}
+        for imei in imeis:
+            unit = units.get(imei)
+            if unit is not None and unit.status != "available":
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"IMEI {imei} no está disponible",
+                )
 
     currency = payload.currency
 
@@ -180,9 +271,15 @@ async def create_sale(session: AsyncSession, payload: SaleCreate) -> Sale:
                 quantity=quantity,
                 unit_price=unit_price,
                 line_total=line_total,
-                imei=requested["imei"],
+                imei=_join_imeis(requested["imeis"]),
             )
         )
+
+    imeis_by_product = {
+        pid: requested["imeis"]
+        for pid, requested in merged.items()
+        if requested["imeis"]
+    }
 
     sale = Sale(
         id=sale_id,
@@ -205,12 +302,14 @@ async def create_sale(session: AsyncSession, payload: SaleCreate) -> Sale:
         await session.rollback()
         duplicate = await _by_key(session, payload.idempotency_key)
         if duplicate is not None:
-            return await _complete_pending(session, duplicate)
+            return await _complete_pending(
+                session, duplicate, imeis_by_product
+            )
         raise HTTPException(status_code=409, detail="sale conflict, retry")
 
     created = await _by_id(session, sale_id)
     assert created is not None
-    return await _complete_pending(session, created)
+    return await _complete_pending(session, created, imeis_by_product)
 
 
 async def list_sales(
@@ -347,6 +446,15 @@ async def delete_sale(session: AsyncSession, sale_id: uuid.UUID) -> Sale:
         if stock_item:
             stock_item.quantity = int(stock_item.quantity) + int(item.quantity)
             stock_item.updated_at = settings.now_venezuela()
+
+    # Liberar los IMEIs vendidos en esta venta
+    units = await session.execute(
+        select(StockUnit).where(StockUnit.sale_id == sale.id)
+    )
+    for unit in units.scalars().all():
+        unit.status = "available"
+        unit.sale_id = None
+        unit.updated_at = settings.now_venezuela()
 
     # Eliminar movimientos de stock asociados a esta venta
     result = await session.execute(

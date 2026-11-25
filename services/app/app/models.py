@@ -106,6 +106,33 @@ class StockItem(Base):
         return self.quantity <= self.threshold
 
 
+class StockUnit(Base):
+    __tablename__ = "stock_units"
+    __table_args__ = (
+        UniqueConstraint("product_id", "imei", name="uq_stock_unit_product_imei"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), nullable=False, index=True
+    )
+    imei: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="available"
+    )
+    sale_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid(as_uuid=True), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now, onupdate=_now
+    )
+
+
 class StockMovement(Base):
     __tablename__ = "stock_movements"
     __table_args__ = (

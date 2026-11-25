@@ -10,14 +10,14 @@ import {
 } from '../format'
 import { Icon } from '../icons'
 import casheaLogo from '../assets/cashea-logo.png'
-import type { DashboardRow, PaymentMethod, Sale } from '../types'
+import type { DashboardRow, PaymentMethod, Sale, StockUnit } from '../types'
 import { InvoiceLightbox } from './InvoiceLightbox'
 
 interface Line {
   row: DashboardRow
   quantity: number
   unitPrice: number
-  imei: string
+  imeis: string[]
 }
 
 const PAYMENTS: { id: PaymentMethod; label: string }[] = [
@@ -61,7 +61,7 @@ export function SaleDrawer({
             row: initialRow,
             quantity: 1,
             unitPrice: productPrice(initialRow),
-            imei: '',
+            imeis: [],
           },
         ]
       : [],
@@ -81,6 +81,12 @@ export function SaleDrawer({
   const [invoiceError, setInvoiceError] = useState<string | null>(null)
   const [receiptInvoiceUrl, setReceiptInvoiceUrl] = useState<string | null>(null)
   const [receiptLightboxOpen, setReceiptLightboxOpen] = useState(false)
+  const [unitOptions, setUnitOptions] = useState<Record<string, StockUnit[]>>(
+    {},
+  )
+  const [unitLoading, setUnitLoading] = useState<string | null>(null)
+  const [openPicker, setOpenPicker] = useState<string | null>(null)
+  const [manualImei, setManualImei] = useState('')
 
   const defaultUnitPrice = (row: DashboardRow) =>
     payment === 'cashea' ? casheaPrice(row) : productPrice(row)
@@ -152,9 +158,9 @@ export function SaleDrawer({
       .invoiceUrl(receipt.id)
       .then((data) => {
         if (active) {
-          objectUrl = data.url
+          objectUrl = data.revoke ? data.url : null
           setReceiptInvoiceUrl(data.url)
-        } else {
+        } else if (data.revoke) {
           URL.revokeObjectURL(data.url)
         }
       })
@@ -198,7 +204,7 @@ export function SaleDrawer({
       if (!existing) {
         return [
           ...current,
-          { row, quantity: 1, unitPrice: defaultUnitPrice(row), imei: '' },
+          { row, quantity: 1, unitPrice: defaultUnitPrice(row), imeis: [] },
         ]
       }
       if (existing.quantity >= row.quantity) return current
@@ -213,14 +219,18 @@ export function SaleDrawer({
 
   const updateQuantity = (productId: string, value: number) => {
     setLines((current) =>
-      current.map((line) =>
-        line.row.id === productId
-          ? {
-              ...line,
-              quantity: Math.max(0, Math.min(line.row.quantity, Math.floor(value))),
-            }
-          : line,
-      ),
+      current.map((line) => {
+        if (line.row.id !== productId) return line
+        const quantity = Math.max(
+          0,
+          Math.min(line.row.quantity, Math.floor(value)),
+        )
+        return {
+          ...line,
+          quantity,
+          imeis: line.imeis.slice(0, quantity),
+        }
+      }),
     )
   }
 
@@ -234,10 +244,47 @@ export function SaleDrawer({
     )
   }
 
-  const updateImei = (productId: string, value: string) => {
+  const loadUnits = async (productId: string) => {
+    setUnitLoading(productId)
+    try {
+      const units = await api.stockUnits(productId, 'available')
+      setUnitOptions((current) => ({ ...current, [productId]: units }))
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setUnitLoading((current) => (current === productId ? null : current))
+    }
+  }
+
+  const togglePicker = (productId: string) => {
+    setManualImei('')
+    setOpenPicker((current) => {
+      const next = current === productId ? null : productId
+      if (next) void loadUnits(productId)
+      return next
+    })
+  }
+
+  const addImei = (productId: string, raw: string) => {
+    const value = raw.trim()
+    if (!value) return
+    setLines((current) =>
+      current.map((line) => {
+        if (line.row.id !== productId) return line
+        if (line.imeis.includes(value) || line.imeis.length >= line.quantity) {
+          return line
+        }
+        return { ...line, imeis: [...line.imeis, value] }
+      }),
+    )
+  }
+
+  const removeImei = (productId: string, value: string) => {
     setLines((current) =>
       current.map((line) =>
-        line.row.id === productId ? { ...line, imei: value.trim() } : line,
+        line.row.id === productId
+          ? { ...line, imeis: line.imeis.filter((imei) => imei !== value) }
+          : line,
       ),
     )
   }
@@ -287,7 +334,7 @@ export function SaleDrawer({
           product_id: line.row.id,
           quantity: line.quantity,
           unit_price: round2(line.unitPrice),
-          imei: line.imei,
+          imeis: line.imeis,
         })),
         payment_method: payment,
         currency: 'USD',
@@ -318,6 +365,8 @@ export function SaleDrawer({
     setInvoiceFile(null)
     setInvoiceError(null)
     setReceiptLightboxOpen(false)
+    setOpenPicker(null)
+    setManualImei('')
     setInvoiceInputKey((value) => value + 1)
     setKey(makeKey())
     void refreshProducts()
@@ -627,18 +676,111 @@ export function SaleDrawer({
                             }
                           />
                         </label>
-                        <label className="field">
-                          <span>IMEI (obligatorio)</span>
-                          <input
-                            type="text"
-                            maxLength={64}
-                            value={line.imei}
-                            onChange={(event) =>
-                              updateImei(line.row.id, event.target.value)
-                            }
-                            placeholder="Ej. 351234567890123"
-                          />
-                        </label>
+                        <div className="field imei-field">
+                          <span>
+                            IMEIs ({line.imeis.length}/{line.quantity})
+                          </span>
+                          <div className="imei-chips">
+                            {line.imeis.map((imei) => (
+                              <span
+                                key={imei}
+                                className="chip chip-removable mono"
+                              >
+                                {imei}
+                                <button
+                                  type="button"
+                                  onClick={() => removeImei(line.row.id, imei)}
+                                  aria-label={`Quitar IMEI ${imei}`}
+                                >
+                                  <Icon name="close" size={11} />
+                                </button>
+                              </span>
+                            ))}
+                            {line.imeis.length < line.quantity && (
+                              <button
+                                type="button"
+                                className="chip chip-add"
+                                onClick={() => togglePicker(line.row.id)}
+                              >
+                                <Icon name="plus" size={13} />
+                                Añadir
+                              </button>
+                            )}
+                          </div>
+                          {line.imeis.length < line.quantity && (
+                            <span className="muted small">
+                              Faltan {line.quantity - line.imeis.length}{' '}
+                              IMEI(s) por asignar.
+                            </span>
+                          )}
+                          {openPicker === line.row.id && (
+                            <div className="imei-picker">
+                              {unitLoading === line.row.id ? (
+                                <span className="muted small">
+                                  Cargando IMEIs…
+                                </span>
+                              ) : (
+                                <>
+                                  {(unitOptions[line.row.id] ?? []).filter(
+                                    (unit) =>
+                                      !line.imeis.includes(unit.imei),
+                                  ).length > 0 ? (
+                                    <div className="chip-row">
+                                      {(unitOptions[line.row.id] ?? [])
+                                        .filter(
+                                          (unit) =>
+                                            !line.imeis.includes(unit.imei),
+                                        )
+                                        .map((unit) => (
+                                          <button
+                                            key={unit.id}
+                                            type="button"
+                                            className="chip mono"
+                                            onClick={() =>
+                                              addImei(line.row.id, unit.imei)
+                                            }
+                                          >
+                                            {unit.imei}
+                                          </button>
+                                        ))}
+                                    </div>
+                                  ) : (
+                                    <p className="muted small">
+                                      No hay IMEIs registrados disponibles.
+                                    </p>
+                                  )}
+                                  <div className="imei-manual">
+                                    <input
+                                      value={manualImei}
+                                      onChange={(event) =>
+                                        setManualImei(event.target.value)
+                                      }
+                                      placeholder="Escribir IMEI manual"
+                                      maxLength={64}
+                                    />
+                                    <button
+                                      type="button"
+                                      className="btn btn-ghost btn-sm"
+                                      onClick={() => {
+                                        addImei(line.row.id, manualImei)
+                                        setManualImei('')
+                                      }}
+                                    >
+                                      Añadir
+                                    </button>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="link-btn"
+                                    onClick={() => setOpenPicker(null)}
+                                  >
+                                    Cerrar lista
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
                         <div className="sale-line-total">
                           <span className="muted small">Total</span>
                           <strong>{money(line.unitPrice * line.quantity)}</strong>

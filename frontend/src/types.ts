@@ -77,6 +77,15 @@ export interface DashboardResponse {
   products: DashboardRow[]
 }
 
+export interface StockUnit {
+  id: string
+  product_id: string
+  imei: string
+  status: 'available' | 'sold' | string
+  sale_id: string | null
+  created_at: string
+}
+
 export interface Movement {
   id: string
   product_id: string
@@ -159,6 +168,7 @@ export interface SaleInputItem {
   quantity: number
   unit_price?: number
   imei?: string
+  imeis?: string[]
 }
 
 export interface SaleInput {

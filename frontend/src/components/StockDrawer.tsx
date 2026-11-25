@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api } from '../api'
 import { dateTime, money, bcvPrice, productPrice } from '../format'
 import { Icon } from '../icons'
-import type { DashboardRow, Movement } from '../types'
+import type { DashboardRow, Movement, StockUnit } from '../types'
 
 export type StockMode = 'entry' | 'exit' | 'set' | 'history'
 
@@ -35,10 +35,28 @@ export function StockDrawer({
     mode === 'set' ? String(row.quantity) : '1',
   )
   const [note, setNote] = useState('')
-  const [imei, setImei] = useState(row.imei || '')
+  const [imeisText, setImeisText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [movements, setMovements] = useState<Movement[] | null>(null)
+  const [availableUnits, setAvailableUnits] = useState<StockUnit[] | null>(
+    null,
+  )
+
+  useEffect(() => {
+    let active = true
+    api
+      .stockUnits(row.id, 'available')
+      .then((units) => {
+        if (active) setAvailableUnits(units)
+      })
+      .catch(() => {
+        if (active) setAvailableUnits([])
+      })
+    return () => {
+      active = false
+    }
+  }, [row.id])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -78,6 +96,10 @@ export function StockDrawer({
         ? row.quantity + parsed
         : row.quantity - parsed
   const excessiveExit = tab === 'exit' && validNumber && resulting < 0
+  const parsedImeis = imeisText
+    .split(/[\n,;]+/)
+    .map((value) => value.trim())
+    .filter(Boolean)
 
   const canSubmit = useMemo(() => {
     if (!validNumber) return false
@@ -99,7 +121,8 @@ export function StockDrawer({
     setBusy(true)
     setError(null)
     try {
-      if (tab === 'entry') await api.addEntry(row.id, parsed, note)
+      if (tab === 'entry')
+        await api.addEntry(row.id, parsed, note, parsedImeis)
       else if (tab === 'exit') await api.addExit(row.id, parsed, note)
       else await api.adjust(row.id, parsed, note)
       onDone(
@@ -238,16 +261,42 @@ export function StockDrawer({
                   autoFocus
                 />
               </label>
-              <label className="field">
-                <span>IMEI (opcional)</span>
-                <input
-                  type="text"
-                  maxLength={64}
-                  value={imei}
-                  onChange={(event) => setImei(event.target.value)}
-                  placeholder="Número IMEI"
-                />
-              </label>
+              {tab === 'entry' && (
+                <>
+                  <label className="field">
+                    <span>IMEIs (opcional · uno por línea)</span>
+                    <textarea
+                      rows={3}
+                      value={imeisText}
+                      onChange={(event) => setImeisText(event.target.value)}
+                      placeholder={'356789012345678\n356789012345679'}
+                    />
+                  </label>
+                  {parsedImeis.length > 0 && parsedImeis.length !== parsed && (
+                    <p className="muted small">
+                      Has escrito {parsedImeis.length} IMEI(s) para{' '}
+                      {parsed || 0} unidad(es).
+                    </p>
+                  )}
+                  <div className="imei-stock">
+                    <span className="muted small">
+                      IMEIs disponibles en stock
+                      {availableUnits ? ` (${availableUnits.length})` : ''}
+                    </span>
+                    {availableUnits && availableUnits.length > 0 ? (
+                      <div className="chip-row">
+                        {availableUnits.map((unit) => (
+                          <span key={unit.id} className="chip mono">
+                            {unit.imei}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="muted small">Sin IMEIs registrados.</p>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="quick-row">
                 {tab === 'set' && (

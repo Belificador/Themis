@@ -53,9 +53,9 @@ export function SaleDetailDrawer({
       .invoiceUrl(current.id)
       .then((data) => {
         if (active) {
-          objectUrl = data.url
+          objectUrl = data.revoke ? data.url : null
           setInvoicePreviewUrl(data.url)
-        } else {
+        } else if (data.revoke) {
           URL.revokeObjectURL(data.url)
         }
       })
