@@ -38,3 +38,7 @@ settings = Settings()
 
 # Zona horaria de Venezuela (America/Caracas = UTC-4, sin cambio de horario de verano)
 VENEZUELA_TZ = ZoneInfo("America/Caracas")
+
+def now_venezuela() -> datetime:
+    """Retorna la fecha y hora actual en zona horaria de Venezuela."""
+    return settings.now_venezuela()
