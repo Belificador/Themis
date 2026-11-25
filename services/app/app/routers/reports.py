@@ -172,11 +172,10 @@ async def _upload_to_supabase(file_bytes: bytes, filename: str, content_type: st
         data=file_bytes,
         content_type=content_type,
     )
-    signed = await supabase_client.create_signed_url(
+    return await supabase_client.create_signed_url(
         bucket=settings.supabase_bucket_product_images,
         path=storage_path,
     )
-    return f"{settings.supabase_url.rstrip('/')}{signed}"
 
 
 @router.get("/export-sales")
