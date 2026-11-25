@@ -141,6 +141,7 @@ export function SaleDrawer({
 
   useEffect(() => {
     let active = true
+    let objectUrl: string | null = null
     if (!receipt?.invoice_uploaded_at) {
       setReceiptInvoiceUrl(null)
       return
@@ -148,13 +149,19 @@ export function SaleDrawer({
     api
       .invoiceUrl(receipt.id)
       .then((data) => {
-        if (active) setReceiptInvoiceUrl(data.url)
+        if (active) {
+          objectUrl = data.url
+          setReceiptInvoiceUrl(data.url)
+        } else {
+          URL.revokeObjectURL(data.url)
+        }
       })
       .catch(() => {
         if (active) setReceiptInvoiceUrl(null)
       })
     return () => {
       active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
   }, [receipt?.id, receipt?.invoice_uploaded_at])
 

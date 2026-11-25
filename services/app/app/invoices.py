@@ -103,7 +103,11 @@ async def attach_invoice(sale: Sale, upload: UploadFile) -> None:
         path = directory / stored_name
         path.write_bytes(data)
 
-        old_path = Path(settings.media_dir) / "invoices" / str(sale.id) / sale.invoice_stored_name if sale.invoice_stored_name else None
+        old_path = (
+            Path(settings.media_dir) / sale.invoice_stored_name
+            if sale.invoice_stored_name
+            else None
+        )
         if old_path and old_path.exists() and old_path != path:
             old_path.unlink(missing_ok=True)
 

@@ -125,8 +125,17 @@ export const api = {
     request<void>(`/api/sales/${saleId}/invoice`, {
       method: 'DELETE',
     }),
-  invoiceUrl: (saleId: string) =>
-    request<{ url: string }>(`/api/sales/${saleId}/invoice-url`),
+  invoiceUrl: async (saleId: string) => {
+    const token = localStorage.getItem('themis-token')
+    const response = await fetch(apiUrl(`/api/sales/${saleId}/invoice-url`), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`)
+    }
+    const blob = await response.blob()
+    return { url: URL.createObjectURL(blob) }
+  },
   exportSales: () => {
     const token = localStorage.getItem('themis-token')
     return fetch(apiUrl('/api/reports/export-sales'), {

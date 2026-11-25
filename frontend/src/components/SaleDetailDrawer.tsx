@@ -42,6 +42,7 @@ export function SaleDetailDrawer({
 
   useEffect(() => {
     let active = true
+    let objectUrl: string | null = null
     if (!current.invoice_uploaded_at) {
       setInvoicePreviewUrl(null)
       return
@@ -49,13 +50,19 @@ export function SaleDetailDrawer({
     api
       .invoiceUrl(current.id)
       .then((data) => {
-        if (active) setInvoicePreviewUrl(data.url)
+        if (active) {
+          objectUrl = data.url
+          setInvoicePreviewUrl(data.url)
+        } else {
+          URL.revokeObjectURL(data.url)
+        }
       })
       .catch(() => {
         if (active) setInvoicePreviewUrl(null)
       })
     return () => {
       active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
   }, [current.id, current.invoice_uploaded_at])
 
