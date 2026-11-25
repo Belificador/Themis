@@ -39,10 +39,20 @@ export function Overview({
     setExportingSales(true)
     setError(null)
     try {
-      const { url, filename } = await api.exportSales()
-      const message = `*Themis - Reporte de Ventas*\n\n📁 Archivo: ${filename}\n🔗 Descarga: ${url}\n📅 Fecha: ${new Date().toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}\n\nGenerado desde Themis App`
+      const response = await api.exportSales()
+      if (!response.ok) throw new Error(await response.text())
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'ventas.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      const message = `*Themis - Reporte de Ventas*\n\n📁 Reporte de ventas generado\n📅 Fecha: ${new Date().toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}\n\nDescarga el archivo adjunto y envíalo por WhatsApp al +58 4125663647.`
       const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
-      window.open(url, '_blank')
       setTimeout(() => window.open(waUrl, '_blank'), 1000)
     } catch (err) {
       setError((err as Error).message)
@@ -55,10 +65,20 @@ export function Overview({
     setExportingStock(true)
     setError(null)
     try {
-      const { url, filename } = await api.exportStock()
-      const message = `*Themis - Reporte de Inventario*\n\n📁 Archivo: ${filename}\n🔗 Descarga: ${url}\n📅 Fecha: ${new Date().toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}\n\nGenerado desde Themis App`
+      const response = await api.exportStock()
+      if (!response.ok) throw new Error(await response.text())
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'stock.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      const message = `*Themis - Reporte de Inventario*\n\n📁 Reporte de inventario generado\n📅 Fecha: ${new Date().toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}\n\nDescarga el archivo adjunto y envíalo por WhatsApp al +58 4125663647.`
       const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
-      window.open(url, '_blank')
       setTimeout(() => window.open(waUrl, '_blank'), 1000)
     } catch (err) {
       setError((err as Error).message)

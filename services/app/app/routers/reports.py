@@ -7,31 +7,16 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select
+
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
-
-from egm_common.supabase_client import SupabaseClient
 
 from ..config import settings
 from ..db import get_session
 from ..models import Product, StockItem, Sale, SaleItem
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
-
-supabase_client = (
-    SupabaseClient(
-        base_url=settings.supabase_url,
-        anon_key=settings.supabase_anon_key,
-        service_role_key=settings.supabase_service_role_key,
-    )
-    if settings.supabase_url and settings.supabase_service_role_key
-    else None
-)
-
-
-def _use_supabase() -> bool:
-    return supabase_client is not None
 
 
 def _build_sales_excel(sales: list) -> bytes:
@@ -160,24 +145,6 @@ def _build_stock_excel(products: list, stock_items: list) -> bytes:
     return buf.read()
 
 
-async def _upload_to_supabase(file_bytes: bytes, filename: str, content_type: str) -> str:
-    if not _use_supabase():
-        raise HTTPException(
-            status_code=503, detail="Supabase storage not configured"
-        )
-    storage_path = f"reports/{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{filename}"
-    await supabase_client.upload(
-        bucket=settings.supabase_bucket_product_images,
-        path=storage_path,
-        data=file_bytes,
-        content_type=content_type,
-    )
-    return await supabase_client.create_signed_url(
-        bucket=settings.supabase_bucket_product_images,
-        path=storage_path,
-    )
-
-
 @router.get("/export-sales")
 async def export_sales(session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(Sale).order_by(Sale.created_at.desc()))
@@ -186,16 +153,20 @@ async def export_sales(session: AsyncSession = Depends(get_session)):
         raise HTTPException(status_code=404, detail="No hay ventas para exportar")
 
     file_bytes = _build_sales_excel(sales)
-    url = await _upload_to_supabase(
-        file_bytes, f"ventas_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.xlsx",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    filename = f"ventas_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+    return StreamingResponse(
+        io.BytesIO(file_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
-    return {"url": url, "filename": f"ventas_{datetime.now(timezone.utc).strftime('%Y%m%d')}.xlsx", "count": len(sales)}
 
 
 @router.get("/export-stock")
 async def export_stock(session: AsyncSession = Depends(get_session)):
-    result_products = await session.execute(select(Product).order_by(Product.brand, Product.model))
+    result_products = await session.execute(
+        select(Product).order_by(Product.brand, Product.model)
+    )
     products = list(result_products.scalars().all())
     result_stock = await session.execute(select(StockItem))
     stock_items = list(result_stock.scalars().all())
@@ -203,8 +174,10 @@ async def export_stock(session: AsyncSession = Depends(get_session)):
         raise HTTPException(status_code=404, detail="No hay productos para exportar")
 
     file_bytes = _build_stock_excel(products, stock_items)
-    url = await _upload_to_supabase(
-        file_bytes, f"stock_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.xlsx",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    filename = f"stock_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+    return StreamingResponse(
+        io.BytesIO(file_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
-    return {"url": url, "filename": f"stock_{datetime.now(timezone.utc).strftime('%Y%m%d')}.xlsx", "count": len(products)}

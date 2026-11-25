@@ -127,6 +127,16 @@ export const api = {
     }),
   invoiceUrl: (saleId: string) =>
     request<{ url: string }>(`/api/sales/${saleId}/invoice-url`),
-  exportSales: () => request<{ url: string; filename: string; count: number }>('/api/reports/export-sales'),
-  exportStock: () => request<{ url: string; filename: string; count: number }>('/api/reports/export-stock'),
+  exportSales: () => {
+    const token = localStorage.getItem('themis-token')
+    return fetch(apiUrl('/api/reports/export-sales'), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  },
+  exportStock: () => {
+    const token = localStorage.getItem('themis-token')
+    return fetch(apiUrl('/api/reports/export-stock'), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  },
 }
